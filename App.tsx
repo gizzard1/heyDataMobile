@@ -8,8 +8,9 @@ import React, { useState } from 'react';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
 
-type CurrentScreen = 'login' | 'register' | 'forgotPassword';
+type CurrentScreen = 'login' | 'register' | 'forgotPassword' | 'calendar';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<CurrentScreen>('login');
@@ -26,6 +27,14 @@ function App() {
     setCurrentScreen('login');
   };
 
+  const goToCalendar = () => {
+    setCurrentScreen('calendar');
+  };
+
+  if (currentScreen === 'calendar') {
+    return <CalendarScreen />;
+  }
+
   if (currentScreen === 'register') {
     return <RegisterScreen onBackToLogin={backToLogin} />;
   }
@@ -34,7 +43,7 @@ function App() {
     return <ForgotPasswordScreen onBackToLogin={backToLogin} />;
   }
 
-  return <LoginScreen onGoToRegister={goToRegister} onGoToForgotPassword={goToForgotPassword} />;
+  return <LoginScreen onGoToRegister={goToRegister} onGoToForgotPassword={goToForgotPassword} onLoginSuccess={goToCalendar} />;
 }
 
 export default App;

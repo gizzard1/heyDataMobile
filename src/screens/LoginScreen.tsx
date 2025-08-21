@@ -21,9 +21,10 @@ import {
 interface LoginScreenProps {
   onGoToRegister: () => void;
   onGoToForgotPassword: () => void;
+  onLoginSuccess: () => void;
 }
 
-function LoginScreen({ onGoToRegister, onGoToForgotPassword }: LoginScreenProps) {
+function LoginScreen({ onGoToRegister, onGoToForgotPassword, onLoginSuccess }: LoginScreenProps) {
   const isDarkMode = useColorScheme() === 'dark';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +35,12 @@ function LoginScreen({ onGoToRegister, onGoToForgotPassword }: LoginScreenProps)
   };
 
   const handleLogin = () => {
-    Alert.alert('Login', `Email: ${email}\nContraseña: ${password}\nRecordar: ${rememberMe}`);
+    if (email && password) {
+      // Aquí podrías agregar validación real del login
+      onLoginSuccess();
+    } else {
+      Alert.alert('Error', 'Por favor completa todos los campos');
+    }
   };
 
   const handleForgotPassword = () => {
