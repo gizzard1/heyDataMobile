@@ -9,8 +9,9 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
+import LoadingScreen from './src/components/LoadingScreen';
 
-type CurrentScreen = 'login' | 'register' | 'forgotPassword' | 'calendar';
+type CurrentScreen = 'login' | 'register' | 'forgotPassword' | 'loading' | 'calendar';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<CurrentScreen>('login');
@@ -28,8 +29,16 @@ function App() {
   };
 
   const goToCalendar = () => {
+    setCurrentScreen('loading'); // Ir primero a la pantalla de carga
+  };
+
+  const goToCalendarFromLoading = () => {
     setCurrentScreen('calendar');
   };
+
+  if (currentScreen === 'loading') {
+    return <LoadingScreen onFinish={goToCalendarFromLoading} />;
+  }
 
   if (currentScreen === 'calendar') {
     return <CalendarScreen />;
@@ -43,7 +52,13 @@ function App() {
     return <ForgotPasswordScreen onBackToLogin={backToLogin} />;
   }
 
-  return <LoginScreen onGoToRegister={goToRegister} onGoToForgotPassword={goToForgotPassword} onLoginSuccess={goToCalendar} />;
+  return (
+    <LoginScreen
+      onGoToRegister={goToRegister}
+      onGoToForgotPassword={goToForgotPassword}
+      onLoginSuccess={goToCalendar}
+    />
+  );
 }
 
 export default App;
