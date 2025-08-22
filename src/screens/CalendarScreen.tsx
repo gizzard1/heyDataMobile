@@ -53,6 +53,12 @@ const CalendarScreen = (): React.JSX.Element => {
   // Estado base para zoom
   const lastScale = useRef(1);
 
+  // Referencias para sincronizar scroll (estilo Excel)
+  const headerScrollRef = useRef<ScrollView>(null);
+  const timeScrollRef = useRef<ScrollView>(null);
+  const contentScrollRef = useRef<ScrollView>(null);
+  const mainScrollRef = useRef<ScrollView>(null);
+
   // Solo zoom, sin pan para evitar bugs
   const handleDoubleTap = () => {
     const newScale = lastScale.current >= 1.5 ? 1 : 2;
@@ -82,11 +88,11 @@ const CalendarScreen = (): React.JSX.Element => {
 
   // Trabajadoras
   const workers: Worker[] = [
-    { id: '1', name: 'Norma', color: '#3498db' },
-    { id: '2', name: 'Brenda', color: '#e74c3c' },
-    { id: '3', name: 'Susana', color: '#9b59b6' },
-    { id: '4', name: 'Andrea', color: '#2ecc71' },
-    { id: '5', name: 'Isabel', color: '#f39c12' },
+    { id: '1', name: 'Norma', color: '#3498db' },     // Azul
+    { id: '2', name: 'Brenda', color: '#e74c3c' },    // Rojo
+    { id: '3', name: 'Susana', color: '#9b59b6' },    // Púrpura
+    { id: '4', name: 'Andrea', color: '#2ecc71' },    // Verde
+    { id: '5', name: 'Isabel', color: '#f39c12' },    // Naranja
   ];
 
   // Horarios del día (de 9:00 AM a 6:00 PM)
@@ -129,10 +135,82 @@ const CalendarScreen = (): React.JSX.Element => {
       id: '4',
       title: 'María González - Tinte',
       startTime: '16:00',
-      endTime: '17:30',
+      endTime: '17:00',
       color: '#2ecc71',
       date: '2025-08-21',
       worker: 'Andrea',
+    },
+    {
+      id: '5',
+      title: 'Carmen - Manicure',
+      startTime: '9:00',
+      endTime: '10:00',
+      color: '#f39c12',
+      date: '2025-08-21',
+      worker: 'Isabel',
+    },
+    {
+      id: '6',
+      title: 'Ana López - Corte y color',
+      startTime: '12:00',
+      endTime: '13:00',
+      color: '#3498db',
+      date: '2025-08-21',
+      worker: 'Norma',
+    },
+    {
+      id: '7',
+      title: 'Victoria - Pedicure',
+      startTime: '15:00',
+      endTime: '16:00',
+      color: '#e74c3c',
+      date: '2025-08-21',
+      worker: 'Brenda',
+    },
+    {
+      id: '8',
+      title: 'Sofía - Extensiones',
+      startTime: '11:00',
+      endTime: '12:00',
+      color: '#9b59b6',
+      date: '2025-08-21',
+      worker: 'Susana',
+    },
+    {
+      id: '9',
+      title: 'Patricia - Tratamiento capilar',
+      startTime: '9:00',
+      endTime: '10:00',
+      color: '#2ecc71',
+      date: '2025-08-21',
+      worker: 'Andrea',
+    },
+    {
+      id: '10',
+      title: 'Claudia - Maquillaje',
+      startTime: '13:00',
+      endTime: '14:00',
+      color: '#f39c12',
+      date: '2025-08-21',
+      worker: 'Isabel',
+    },
+    {
+      id: '11',
+      title: 'Fernanda - Corte infantil',
+      startTime: '17:00',
+      endTime: '18:00',
+      color: '#3498db',
+      date: '2025-08-21',
+      worker: 'Norma',
+    },
+    {
+      id: '12',
+      title: 'Gabriela - Alisado',
+      startTime: '10:00',
+      endTime: '11:00',
+      color: '#e74c3c',
+      date: '2025-08-21',
+      worker: 'Brenda',
     },
   ]);
 
@@ -279,31 +357,67 @@ const CalendarScreen = (): React.JSX.Element => {
 
     // Función para obtener eventos de una trabajadora en un horario específico
     const getEventForWorkerAtTime = (workerName: string, time: string) => {
-      return dayEvents.find(event => 
-        event.worker === workerName && 
-        event.startTime <= time && 
-        event.endTime > time
-      );
+      return dayEvents.find(event => {
+        if (event.worker !== workerName) return false;
+        
+        // Convertir horarios a minutos para comparación más precisa
+        const [eventStartHour, eventStartMin] = event.startTime.split(':').map(Number);
+        const [eventEndHour, eventEndMin] = event.endTime.split(':').map(Number);
+        const [slotHour, slotMin] = time.split(':').map(Number);
+        
+        const eventStartTotal = eventStartHour * 60 + eventStartMin;
+        const eventEndTotal = eventEndHour * 60 + eventEndMin;
+        const slotTotal = slotHour * 60 + slotMin;
+        
+        // El evento se muestra si el slot está dentro del rango del evento
+        return slotTotal >= eventStartTotal && slotTotal < eventEndTotal;
+      });
+    };
+
+    // Función mejorada para verificar si un evento comienza en este slot específico
+    const isEventStart = (event: CalendarEvent, time: string) => {
+      return event.startTime === time;
     };
 
     // Función para calcular la altura del evento basado en duración
     const getEventHeight = (startTime: string, endTime: string) => {
-      const start = parseFloat(startTime.replace(':', '.'));
-      const end = parseFloat(endTime.replace(':', '.'));
-      const duration = end - start;
-      return Math.max(duration * 60, 30); // Mínimo 30px de altura
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      
+      const startTotalMin = startHour * 60 + startMin;
+      const endTotalMin = endHour * 60 + endMin;
+      const durationMin = endTotalMin - startTotalMin;
+      
+      // Cada slot de 30 min = 50px, así que cada minuto = 50/30 ≈ 1.67px
+      const heightPerMinute = 50 / 30;
+      return Math.max(durationMin * heightPerMinute - 4, 40); // Mínimo 40px, restar 4px para el margen
     };
 
     return (
       <View style={styles.dayViewContainer}>
-        {/* Header con trabajadoras */}
-        <View style={styles.workersHeader}>
-          <View style={styles.timeColumnHeader} />
-          {workers.map(worker => (
-            <View key={worker.id} style={styles.workerColumn}>
-              <Text style={styles.workerName}>{worker.name}</Text>
+        {/* Header con trabajadoras - FIJO */}
+        <View style={styles.workersHeaderFixed}>
+          <View style={styles.timeColumnHeaderFixed} />
+          <ScrollView 
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            ref={headerScrollRef}
+            scrollEventThrottle={16}
+            onScroll={(event) => {
+              const scrollX = event.nativeEvent.contentOffset.x;
+              if (contentScrollRef.current) {
+                contentScrollRef.current.scrollTo({ x: scrollX, animated: false });
+              }
+            }}
+          >
+            <View style={styles.workersHeaderContent}>
+              {workers.map(worker => (
+                <View key={worker.id} style={styles.workerColumnFixed}>
+                  <Text style={styles.workerName}>{worker.name}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+          </ScrollView>
         </View>
 
         {/* Botón para resetear zoom */}
@@ -311,76 +425,107 @@ const CalendarScreen = (): React.JSX.Element => {
           <Text style={styles.resetButtonText}>↻</Text>
         </TouchableOpacity>
 
-        {/* Contenido con zoom solamente */}
-        <View style={styles.gestureWrapper}>
-          <Animated.View
-            style={[
-              styles.gestureContainer,
-              {
-                transform: [
-                  { scale: scale },
-                ],
-              },
-            ]}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={handleDoubleTap}
-              style={styles.zoomableContent}
+        {/* Contenido principal con scroll bidireccional */}
+        <View style={styles.mainContentContainer}>
+          {/* Columna de horarios fija a la izquierda */}
+          <View style={styles.timeColumnContainer}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              ref={timeScrollRef}
+              scrollEventThrottle={16}
+              onScroll={(event) => {
+                const scrollY = event.nativeEvent.contentOffset.y;
+                if (mainScrollRef.current) {
+                  mainScrollRef.current.scrollTo({ y: scrollY, animated: false });
+                }
+              }}
             >
-              <ScrollView 
-                style={styles.timeScrollView} 
-                showsVerticalScrollIndicator={false}
-                showsHorizontalScrollIndicator={false}
-                horizontal={false}
-                nestedScrollEnabled={true}
-              >
-                <ScrollView
-                  horizontal={true}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.horizontalScrollContent}
-                >
-                  <View style={styles.calendarContent}>
-                    {timeSlots.map((time, index) => (
-                      <View key={time} style={styles.timeRow}>
-                        {/* Columna de horarios */}
-                        <View style={styles.timeColumn}>
-                          <Text style={styles.timeLabel}>{time}</Text>
-                        </View>
+              {timeSlots.map((time, index) => (
+                <View key={time} style={styles.timeSlotFixed}>
+                  <Text style={styles.timeLabel}>{time}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
 
-                        {/* Columnas de trabajadoras */}
-                        {workers.map(worker => {
-                          const event = getEventForWorkerAtTime(worker.name, time);
-                          return (
-                            <View key={worker.id} style={styles.workerTimeSlot}>
-                              {event && event.startTime === time && (
+          {/* Área de contenido scrollable */}
+          <ScrollView
+            style={styles.contentScrollView}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
+            ref={mainScrollRef}
+            scrollEventThrottle={16}
+            onScroll={(event) => {
+              const scrollY = event.nativeEvent.contentOffset.y;
+              if (timeScrollRef.current) {
+                timeScrollRef.current.scrollTo({ y: scrollY, animated: false });
+              }
+            }}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              ref={contentScrollRef}
+              scrollEventThrottle={16}
+              onScroll={(event) => {
+                const scrollX = event.nativeEvent.contentOffset.x;
+                if (headerScrollRef.current) {
+                  headerScrollRef.current.scrollTo({ x: scrollX, animated: false });
+                }
+              }}
+            >
+              <Animated.View
+                style={[
+                  styles.zoomableContent,
+                  {
+                    transform: [{ scale: scale }],
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={handleDoubleTap}
+                  style={styles.calendarGrid}
+                >
+                  {timeSlots.map((time, index) => (
+                    <View key={time} style={styles.timeRowContent}>
+                      {workers.map(worker => {
+                        const event = getEventForWorkerAtTime(worker.name, time);
+                        return (
+                          <View key={worker.id} style={styles.workerTimeSlotFixed}>
+                            {event && isEventStart(event, time) && (
+                              <View 
+                                style={[
+                                  styles.appointmentCard,
+                                  { 
+                                    height: getEventHeight(event.startTime, event.endTime),
+                                  }
+                                ]}
+                              >
+                                <Text style={styles.appointmentTime}>
+                                  {event.startTime} - {event.endTime}
+                                </Text>
+                                <Text style={styles.appointmentTitle}>
+                                  {event.title}
+                                </Text>
+                                {/* Pequeño indicador de color para la trabajadora */}
                                 <View 
                                   style={[
-                                    styles.appointmentCard,
-                                    { 
-                                      backgroundColor: worker.color,
-                                      height: getEventHeight(event.startTime, event.endTime),
-                                    }
+                                    styles.workerColorIndicator,
+                                    { backgroundColor: worker.color }
                                   ]}
-                                >
-                                  <Text style={styles.appointmentTime}>
-                                    {event.startTime} - {event.endTime}
-                                  </Text>
-                                  <Text style={styles.appointmentTitle}>
-                                    {event.title}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    ))}
-                  </View>
-                </ScrollView>
-              </ScrollView>
-            </TouchableOpacity>
-          </Animated.View>
+                                />
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </TouchableOpacity>
+              </Animated.View>
+            </ScrollView>
+          </ScrollView>
         </View>
       </View>
     );
@@ -912,19 +1057,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   workerName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2c3e50',
     textAlign: 'center',
+    textTransform: 'capitalize',
   },
   timeScrollView: {
     flex: 1,
   },
   timeRow: {
     flexDirection: 'row',
-    minHeight: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    minHeight: 60, // Reducido para acomodar más intervalos de tiempo
+    borderBottomWidth: 0.5, // Línea más sutil
+    borderBottomColor: '#f5f5f5', // Color más claro
+    zIndex: 1, // Debajo de las tarjetas
   },
   timeColumn: {
     width: 60,
@@ -941,35 +1088,64 @@ const styles = StyleSheet.create({
   },
   workerTimeSlot: {
     flex: 1,
-    minHeight: 50,
+    minHeight: 60, // Reducido para acomodar más intervalos de tiempo
     position: 'relative',
-    borderRightWidth: 1,
-    borderRightColor: '#f0f0f0',
+    borderRightWidth: 0.5, // Línea más sutil
+    borderRightColor: '#f5f5f5', // Color más claro
     paddingHorizontal: 2,
+    zIndex: 1, // Debajo de las tarjetas
   },
   appointmentCard: {
     position: 'absolute',
-    left: 2,
-    right: 2,
-    borderRadius: 8,
-    padding: 8,
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 8, // Esquinas redondeadas
+    padding: 12, // Ajustado para las celdas más pequeñas
+    margin: 2, // Reducido margen
+    backgroundColor: '#ffffff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1, // Línea más delgada
+    borderStyle: 'solid', // Línea continua en lugar de punteada
+    borderColor: '#d0d0d0', // Color gris suave para línea continua
+    // Ocultar las líneas de la cuadrícula
+    overflow: 'hidden',
+    zIndex: 10, // Para estar encima de las líneas de la cuadrícula
   },
   appointmentTime: {
-    fontSize: 10,
-    color: '#ffffff',
+    fontSize: 11, // Revertido a tamaño original
+    color: '#7f8c8d',
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4, // Revertido a tamaño original
+    textAlign: 'center',
   },
   appointmentTitle: {
-    fontSize: 11,
-    color: '#ffffff',
-    fontWeight: '500',
-    lineHeight: 14,
+    fontSize: 14, // Revertido a tamaño original
+    color: '#2c3e50',
+    fontWeight: '700',
+    lineHeight: 16, // Revertido a tamaño original
+    textAlign: 'center',
+    marginTop: 2, // Revertido a tamaño original
+  },
+  workerColorIndicator: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
   },
 
   // Estilos para el header de vista diaria
@@ -1092,6 +1268,70 @@ const styles = StyleSheet.create({
   },
   calendarContent: {
     minWidth: width, // Asegurar que tenga un ancho mínimo
+  },
+
+  // Estilos para layout tipo Excel
+  workersHeaderFixed: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 2,
+    borderBottomColor: '#e0e0e0',
+    paddingVertical: 15,
+    zIndex: 10,
+  },
+  timeColumnHeaderFixed: {
+    width: 60,
+    backgroundColor: '#f8f9fa',
+    borderRightWidth: 2,
+    borderRightColor: '#e0e0e0',
+  },
+  workersHeaderContent: {
+    flexDirection: 'row',
+  },
+  workerColumnFixed: {
+    width: 120,
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    borderRightWidth: 1,
+    borderRightColor: '#e0e0e0',
+  },
+  mainContentContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  timeColumnContainer: {
+    width: 60,
+    backgroundColor: '#f8f9fa',
+    borderRightWidth: 2,
+    borderRightColor: '#e0e0e0',
+    zIndex: 5,
+  },
+  timeSlotFixed: {
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  contentScrollView: {
+    flex: 1,
+  },
+  calendarGrid: {
+    flex: 1,
+  },
+  timeRowContent: {
+    flexDirection: 'row',
+    height: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  workerTimeSlotFixed: {
+    width: 120,
+    height: 50,
+    position: 'relative',
+    borderRightWidth: 1,
+    borderRightColor: '#f0f0f0',
+    paddingHorizontal: 2,
   },
 });
 
