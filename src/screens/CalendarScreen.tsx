@@ -1152,10 +1152,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   appointmentTitle: {
-    fontSize: 14, // Revertido a tamaño original
+    fontSize: 12, // Reducido de 14 a 12 para texto más pequeño
     color: '#2c3e50',
-    fontWeight: '700',
-    lineHeight: 16, // Revertido a tamaño original
+    fontWeight: '600', // Reducido de 700 a 600 para menos peso
+    lineHeight: 14, // Ajustado proporcionalmente
     textAlign: 'center',
     marginTop: 2, // Revertido a tamaño original
   },
