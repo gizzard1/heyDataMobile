@@ -275,6 +275,13 @@ const CalendarScreen = (): React.JSX.Element => {
     return date.toLocaleDateString('es-ES', options);
   };
 
+  // Navegar entre meses
+  const navigateMonth = (direction: number) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + direction);
+    setCurrentDate(newDate);
+  };
+
   // Verificar si una fecha es hoy
   const isToday = (date: Date) => {
     const today = new Date();
@@ -671,20 +678,37 @@ const CalendarScreen = (): React.JSX.Element => {
         {renderCalendarContent()}
       </View>
 
-      {/* Modal para selector de mes */}
+      {/* Dropdown selector de mes */}
       {showMonthPicker && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.monthPickerModal}>
-            <Text style={styles.modalTitle}>Seleccionar Fecha</Text>
+        <>
+          {/* Overlay transparente para cerrar */}
+          <TouchableOpacity 
+            style={styles.dropdownOverlay}
+            onPress={() => setShowMonthPicker(false)}
+            activeOpacity={1}
+          />
+          {/* Dropdown calendar */}
+          <View style={styles.monthDropdown}>
+            <View style={styles.dropdownHeader}>
+              <TouchableOpacity 
+                onPress={() => navigateMonth(-1)}
+                style={styles.monthNavButton}
+              >
+                <Text style={styles.monthNavText}>‹</Text>
+              </TouchableOpacity>
+              <Text style={styles.dropdownTitle}>
+                {formatMonthYear(currentDate)}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => navigateMonth(1)}
+                style={styles.monthNavButton}
+              >
+                <Text style={styles.monthNavText}>›</Text>
+              </TouchableOpacity>
+            </View>
             {renderMonthView()}
-            <TouchableOpacity 
-              style={styles.modalCloseButton}
-              onPress={() => setShowMonthPicker(false)}
-            >
-              <Text style={styles.modalCloseText}>Cerrar</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </>
       )}
 
       <View style={[
@@ -913,49 +937,52 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  // Month View Styles
   monthView: {
-    flex: 1,
     backgroundColor: '#ffffff',
+    maxHeight: 280, // Reducido para que no necesite scroll
+    borderBottomLeftRadius: 20, // Esquinas inferiores redondeadas
+    borderBottomRightRadius: 20, // Esquinas inferiores redondeadas
+    overflow: 'hidden', // Para que las esquinas se vean correctamente
   },
   monthHeader: {
     flexDirection: 'row',
     backgroundColor: '#f8f9fa',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomWidth: 0, // Quitado el borde inferior
   },
   monthWeekDay: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 12, // Reducido de 14 a 12
     fontWeight: 'bold',
     color: '#666666',
-    paddingVertical: 15,
+    paddingVertical: 10, // Reducido de 15 a 10
   },
   monthGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    paddingBottom: 10, // Padding inferior para mejor apariencia con esquinas redondeadas
   },
   monthDay: {
-    width: width / 7,
-    height: 60,
+    width: '14.28%', // 100% / 7 días = 14.28%
+    height: 40, // Reducido de 50 a 40
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 0.5,
-    borderColor: '#f0f0f0',
+    borderWidth: 0, // Quitado el borde
     position: 'relative',
   },
   otherMonthDay: {
     backgroundColor: '#fafafa',
   },
   todayDay: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#6c63ff', // Color púrpura como en la imagen
+    borderRadius: 20, // Más redondeado
   },
   selectedDay: {
-    backgroundColor: '#2c3e50',
+    backgroundColor: '#6c63ff', // Mismo color para seleccionado
+    borderRadius: 20, // Más redondeado
   },
   monthDayText: {
-    fontSize: 16,
+    fontSize: 14, // Reducido de 16 a 14
     color: '#333333',
     fontWeight: '500',
   },
@@ -963,7 +990,7 @@ const styles = StyleSheet.create({
     color: '#cccccc',
   },
   todayDayText: {
-    color: '#1976d2',
+    color: '#ffffff', // Texto blanco para el fondo púrpura
     fontWeight: 'bold',
   },
   selectedDayText: {
@@ -1332,6 +1359,62 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: '#f0f0f0',
     paddingHorizontal: 2,
+  },
+
+  // Estilos para dropdown del calendario
+  dropdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 999,
+  },
+  monthDropdown: {
+    position: 'absolute',
+    top: 70, // Debajo del header
+    left: 16,
+    right: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 20, // Más redondeado (era 12)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+    zIndex: 1000,
+    maxHeight: 350, // Ligeramente reducido
+  },
+  dropdownHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12, // Reducido de 16 a 12
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    borderTopLeftRadius: 20, // Esquinas superiores redondeadas
+    borderTopRightRadius: 20, // Esquinas superiores redondeadas
+    backgroundColor: '#ffffff', // Asegurar fondo blanco
+  },
+  monthNavButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20, // Más redondeado
+    backgroundColor: '#f8f9fa',
+  },
+  monthNavText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#3498db',
+  },
+  dropdownTitle: {
+    fontSize: 16, // Reducido de 18 a 16
+    fontWeight: '600',
+    color: '#2c3e50',
   },
 });
 
