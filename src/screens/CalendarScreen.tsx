@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   SafeAreaView,
   StatusBar,
@@ -17,6 +17,8 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  Animated,
+  PanResponder,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -28,14 +30,71 @@ interface CalendarEvent {
   endTime: string;
   color: string;
   date: string; // YYYY-MM-DD format
+  worker: string; // Trabajadora asignada
+}
+
+interface Worker {
+  id: string;
+  name: string;
+  color: string;
 }
 
 const CalendarScreen = (): React.JSX.Element => {
   const isDarkMode = useColorScheme() === 'dark';
   const [activeTab, setActiveTab] = useState('Agenda');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Cambiar default a 'day'
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+
+  // Variables para zoom solamente
+  const scale = useRef(new Animated.Value(1)).current;
+
+  // Estado base para zoom
+  const lastScale = useRef(1);
+
+  // Solo zoom, sin pan para evitar bugs
+  const handleDoubleTap = () => {
+    const newScale = lastScale.current >= 1.5 ? 1 : 2;
+    lastScale.current = newScale;
+    Animated.timing(scale, {
+      toValue: newScale,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // Para web - manejar zoom con rueda del mouse
+  const handleWheel = (event: any) => {
+    if (Platform.OS === 'web') {
+      event.preventDefault();
+      const deltaScale = event.deltaY > 0 ? -0.1 : 0.1;
+      const newScale = Math.max(0.8, Math.min(3, lastScale.current + deltaScale));
+      lastScale.current = newScale;
+      
+      Animated.timing(scale, {
+        toValue: newScale,
+        duration: 100,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
+
+  // Trabajadoras
+  const workers: Worker[] = [
+    { id: '1', name: 'Norma', color: '#3498db' },
+    { id: '2', name: 'Brenda', color: '#e74c3c' },
+    { id: '3', name: 'Susana', color: '#9b59b6' },
+    { id: '4', name: 'Andrea', color: '#2ecc71' },
+    { id: '5', name: 'Isabel', color: '#f39c12' },
+  ];
+
+  // Horarios del día (de 9:00 AM a 6:00 PM)
+  const timeSlots = [
+    '9:00', '9:30', '10:00', '10:30', '11:00', '11:30',
+    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+    '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'
+  ];
 
   // Eventos de ejemplo
   const [events, setEvents] = useState<CalendarEvent[]>([
@@ -46,32 +105,42 @@ const CalendarScreen = (): React.JSX.Element => {
       endTime: '11:00',
       color: '#3498db',
       date: '2025-08-21',
+      worker: 'Norma',
     },
     {
       id: '2',
       title: 'Adriana Hernández - Corte de dama',
       startTime: '11:00',
       endTime: '12:00',
-      color: '#2ecc71',
+      color: '#e74c3c',
       date: '2025-08-21',
+      worker: 'Brenda',
     },
     {
       id: '3',
-      title: 'Carlos López - Barba',
+      title: 'Sandra - Peinado',
       startTime: '14:00',
       endTime: '15:00',
-      color: '#e74c3c',
-      date: '2025-08-22',
+      color: '#9b59b6',
+      date: '2025-08-21',
+      worker: 'Susana',
     },
     {
       id: '4',
       title: 'María González - Tinte',
       startTime: '16:00',
       endTime: '17:30',
-      color: '#9b59b6',
-      date: '2025-08-23',
+      color: '#2ecc71',
+      date: '2025-08-21',
+      worker: 'Andrea',
     },
   ]);
+
+  // Función para resetear zoom solamente
+  const resetTransform = () => {
+    Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: false }).start();
+    lastScale.current = 1;
+  };
 
   // Obtener información del mes actual
   const getMonthInfo = (date: Date) => {
@@ -152,58 +221,168 @@ const CalendarScreen = (): React.JSX.Element => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => navigateDate('prev')} style={styles.navButton}>
-        <Text style={styles.navButtonText}>‹</Text>
-      </TouchableOpacity>
-      
-      <View style={styles.headerCenter}>
-        <Text style={styles.headerTitle}>
-          {viewMode === 'day' ? formatDate(currentDate) : formatMonthYear(currentDate)}
-        </Text>
-        <View style={styles.viewModeSelector}>
-          {(['day', 'week', 'month'] as const).map((mode) => (
-            <TouchableOpacity
-              key={mode}
-              style={[styles.viewModeButton, viewMode === mode && styles.activeViewMode]}
-              onPress={() => setViewMode(mode)}
-            >
-              <Text style={[styles.viewModeText, viewMode === mode && styles.activeViewModeText]}>
-                {mode === 'day' ? 'Día' : mode === 'week' ? 'Semana' : 'Mes'}
-              </Text>
+      {viewMode === 'day' ? (
+        // Header para vista diaria con selector de mes
+        <>
+          <TouchableOpacity 
+            style={styles.monthSelector}
+            onPress={() => setShowMonthPicker(!showMonthPicker)}
+          >
+            <Text style={styles.monthSelectorText}>
+              {formatMonthYear(currentDate)}
+            </Text>
+            <Text style={styles.monthSelectorArrow}>▼</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.filterButton}>
+              <Text style={styles.filterButtonText}>🔧</Text>
             </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-      
-      <TouchableOpacity onPress={() => navigateDate('next')} style={styles.navButton}>
-        <Text style={styles.navButtonText}>›</Text>
-      </TouchableOpacity>
+          </View>
+        </>
+      ) : (
+        // Header original para otras vistas
+        <>
+          <TouchableOpacity onPress={() => navigateDate('prev')} style={styles.navButton}>
+            <Text style={styles.navButtonText}>‹</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>
+              {formatMonthYear(currentDate)}
+            </Text>
+            <View style={styles.viewModeSelector}>
+              {(['day', 'week', 'month'] as const).map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  style={[styles.viewModeButton, viewMode === mode && styles.activeViewMode]}
+                  onPress={() => setViewMode(mode)}
+                >
+                  <Text style={[styles.viewModeText, viewMode === mode && styles.activeViewModeText]}>
+                    {mode === 'day' ? 'Día' : mode === 'week' ? 'Semana' : 'Mes'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          
+          <TouchableOpacity onPress={() => navigateDate('next')} style={styles.navButton}>
+            <Text style={styles.navButtonText}>›</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 
   const renderDayView = () => {
-    const hours = Array.from({ length: 17 }, (_, i) => i + 6); // 6:00 - 22:00
     const dayEvents = getEventsForDate(currentDate);
 
+    // Función para obtener eventos de una trabajadora en un horario específico
+    const getEventForWorkerAtTime = (workerName: string, time: string) => {
+      return dayEvents.find(event => 
+        event.worker === workerName && 
+        event.startTime <= time && 
+        event.endTime > time
+      );
+    };
+
+    // Función para calcular la altura del evento basado en duración
+    const getEventHeight = (startTime: string, endTime: string) => {
+      const start = parseFloat(startTime.replace(':', '.'));
+      const end = parseFloat(endTime.replace(':', '.'));
+      const duration = end - start;
+      return Math.max(duration * 60, 30); // Mínimo 30px de altura
+    };
+
     return (
-      <ScrollView style={styles.dayView} showsVerticalScrollIndicator={false}>
-        <Text style={styles.dayViewDate}>{formatDate(currentDate)}</Text>
-        {hours.map(hour => (
-          <View key={hour} style={styles.hourRow}>
-            <Text style={styles.hourLabel}>{`${hour}:00`}</Text>
-            <View style={styles.hourContent}>
-              {dayEvents
-                .filter(event => parseInt(event.startTime.split(':')[0]) === hour)
-                .map(event => (
-                  <TouchableOpacity key={event.id} style={[styles.eventCard, { backgroundColor: event.color }]}>
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                    <Text style={styles.eventTime}>{event.startTime} - {event.endTime}</Text>
-                  </TouchableOpacity>
-                ))}
+      <View style={styles.dayViewContainer}>
+        {/* Header con trabajadoras */}
+        <View style={styles.workersHeader}>
+          <View style={styles.timeColumnHeader} />
+          {workers.map(worker => (
+            <View key={worker.id} style={styles.workerColumn}>
+              <Text style={styles.workerName}>{worker.name}</Text>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </View>
+
+        {/* Botón para resetear zoom */}
+        <TouchableOpacity style={styles.resetButton} onPress={resetTransform}>
+          <Text style={styles.resetButtonText}>↻</Text>
+        </TouchableOpacity>
+
+        {/* Contenido con zoom solamente */}
+        <View style={styles.gestureWrapper}>
+          <Animated.View
+            style={[
+              styles.gestureContainer,
+              {
+                transform: [
+                  { scale: scale },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={handleDoubleTap}
+              style={styles.zoomableContent}
+            >
+              <ScrollView 
+                style={styles.timeScrollView} 
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+                horizontal={false}
+                nestedScrollEnabled={true}
+              >
+                <ScrollView
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalScrollContent}
+                >
+                  <View style={styles.calendarContent}>
+                    {timeSlots.map((time, index) => (
+                      <View key={time} style={styles.timeRow}>
+                        {/* Columna de horarios */}
+                        <View style={styles.timeColumn}>
+                          <Text style={styles.timeLabel}>{time}</Text>
+                        </View>
+
+                        {/* Columnas de trabajadoras */}
+                        {workers.map(worker => {
+                          const event = getEventForWorkerAtTime(worker.name, time);
+                          return (
+                            <View key={worker.id} style={styles.workerTimeSlot}>
+                              {event && event.startTime === time && (
+                                <View 
+                                  style={[
+                                    styles.appointmentCard,
+                                    { 
+                                      backgroundColor: worker.color,
+                                      height: getEventHeight(event.startTime, event.endTime),
+                                    }
+                                  ]}
+                                >
+                                  <Text style={styles.appointmentTime}>
+                                    {event.startTime} - {event.endTime}
+                                  </Text>
+                                  <Text style={styles.appointmentTitle}>
+                                    {event.title}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              </ScrollView>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </View>
     );
   };
 
@@ -293,9 +472,12 @@ const CalendarScreen = (): React.JSX.Element => {
                 ]}
                 onPress={() => {
                   setSelectedDate(day);
-                  if (dayEvents.length > 0) {
+                  setCurrentDate(day);
+                  if (showMonthPicker) {
                     setViewMode('day');
-                    setCurrentDate(day);
+                    setShowMonthPicker(false);
+                  } else if (dayEvents.length > 0) {
+                    setViewMode('day');
                   }
                 }}
               >
@@ -343,6 +525,23 @@ const CalendarScreen = (): React.JSX.Element => {
         {renderHeader()}
         {renderCalendarContent()}
       </View>
+
+      {/* Modal para selector de mes */}
+      {showMonthPicker && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.monthPickerModal}>
+            <Text style={styles.modalTitle}>Seleccionar Fecha</Text>
+            {renderMonthView()}
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowMonthPicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <View style={[
         styles.bottomNavigation,
         Platform.OS === 'web' && { position: 'fixed' as any }
@@ -689,6 +888,210 @@ const styles = StyleSheet.create({
   activeNavLabel: {
     color: '#ECF0F1',
     fontWeight: '600',
+  },
+
+  // Estilos para la vista de horarios diarios
+  dayViewContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  workersHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingVertical: 15,
+  },
+  timeColumnHeader: {
+    width: 60,
+    backgroundColor: '#f8f9fa',
+  },
+  workerColumn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  workerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333333',
+    textAlign: 'center',
+  },
+  timeScrollView: {
+    flex: 1,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    minHeight: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  timeColumn: {
+    width: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRightWidth: 1,
+    borderRightColor: '#e0e0e0',
+  },
+  timeLabel: {
+    fontSize: 12,
+    color: '#666666',
+    fontWeight: '500',
+  },
+  workerTimeSlot: {
+    flex: 1,
+    minHeight: 50,
+    position: 'relative',
+    borderRightWidth: 1,
+    borderRightColor: '#f0f0f0',
+    paddingHorizontal: 2,
+  },
+  appointmentCard: {
+    position: 'absolute',
+    left: 2,
+    right: 2,
+    borderRadius: 8,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  appointmentTime: {
+    fontSize: 10,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  appointmentTitle: {
+    fontSize: 11,
+    color: '#ffffff',
+    fontWeight: '500',
+    lineHeight: 14,
+  },
+
+  // Estilos para el header de vista diaria
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  monthSelectorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginRight: 5,
+  },
+  monthSelectorArrow: {
+    fontSize: 12,
+    color: '#666666',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+  },
+  filterButtonText: {
+    fontSize: 18,
+  },
+
+  // Estilos para el modal de selector de mes
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  monthPickerModal: {
+    backgroundColor: '#ffffff',
+    borderRadius: 15,
+    padding: 20,
+    margin: 20,
+    maxHeight: '80%',
+    width: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333333',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  modalCloseButton: {
+    backgroundColor: '#E63946',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    alignSelf: 'center',
+    marginTop: 15,
+  },
+  modalCloseText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Estilos para gestos de zoom y pan
+  resetButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 40,
+    height: 40,
+    backgroundColor: '#E63946',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  resetButtonText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  gestureContainer: {
+    flex: 1,
+  },
+  gestureWrapper: {
+    flex: 1,
+  },
+  zoomableContent: {
+    flex: 1,
+    minWidth: '100%',
+    minHeight: '100%',
+  },
+  horizontalScrollContent: {
+    flexGrow: 1,
+  },
+  calendarContent: {
+    minWidth: width, // Asegurar que tenga un ancho mínimo
   },
 });
 
