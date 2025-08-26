@@ -59,6 +59,11 @@ const CalendarScreen = (): React.JSX.Element => {
   const contentScrollRef = useRef<ScrollView>(null);
   const mainScrollRef = useRef<ScrollView>(null);
 
+  // Banderas para evitar sincronización circular
+  const isScrollingFromHeader = useRef(false);
+  const isScrollingFromContent = useRef(false);
+  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+
   // Solo zoom, sin pan para evitar bugs
   const handleDoubleTap = () => {
     const newScale = lastScale.current >= 1.5 ? 1 : 2;
@@ -409,12 +414,24 @@ const CalendarScreen = (): React.JSX.Element => {
             horizontal
             showsHorizontalScrollIndicator={false}
             ref={headerScrollRef}
-            scrollEventThrottle={16}
+            scrollEventThrottle={32}
+            removeClippedSubviews={true}
+            directionalLockEnabled={true}
             onScroll={(event) => {
+              if (isScrollingFromContent.current) return;
+              
               const scrollX = event.nativeEvent.contentOffset.x;
+              isScrollingFromHeader.current = true;
+              
               if (contentScrollRef.current) {
                 contentScrollRef.current.scrollTo({ x: scrollX, animated: false });
               }
+              
+              // Limpiar la bandera después de un breve delay
+              if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+              scrollTimeout.current = setTimeout(() => {
+                isScrollingFromHeader.current = false;
+              }, 50);
             }}
           >
             <View style={styles.workersHeaderContent}>
@@ -439,7 +456,8 @@ const CalendarScreen = (): React.JSX.Element => {
             <ScrollView
               showsVerticalScrollIndicator={false}
               ref={timeScrollRef}
-              scrollEventThrottle={16}
+              scrollEventThrottle={32}
+              removeClippedSubviews={true}
               onScroll={(event) => {
                 const scrollY = event.nativeEvent.contentOffset.y;
                 if (mainScrollRef.current) {
@@ -461,7 +479,8 @@ const CalendarScreen = (): React.JSX.Element => {
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             ref={mainScrollRef}
-            scrollEventThrottle={16}
+            scrollEventThrottle={32}
+            removeClippedSubviews={true}
             onScroll={(event) => {
               const scrollY = event.nativeEvent.contentOffset.y;
               if (timeScrollRef.current) {
@@ -473,12 +492,24 @@ const CalendarScreen = (): React.JSX.Element => {
               horizontal
               showsHorizontalScrollIndicator={false}
               ref={contentScrollRef}
-              scrollEventThrottle={16}
+              scrollEventThrottle={32}
+              removeClippedSubviews={true}
+              directionalLockEnabled={true}
               onScroll={(event) => {
+                if (isScrollingFromHeader.current) return;
+                
                 const scrollX = event.nativeEvent.contentOffset.x;
+                isScrollingFromContent.current = true;
+                
                 if (headerScrollRef.current) {
                   headerScrollRef.current.scrollTo({ x: scrollX, animated: false });
                 }
+                
+                // Limpiar la bandera después de un breve delay
+                if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+                scrollTimeout.current = setTimeout(() => {
+                  isScrollingFromContent.current = false;
+                }, 50);
               }}
             >
               <Animated.View
