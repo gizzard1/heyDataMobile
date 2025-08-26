@@ -19,9 +19,23 @@ import {
   Platform,
   Animated,
   PanResponder,
+  Modal,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
+
+// Componente del ícono de filtro
+const FilterIcon = ({ color = '#007AFF', size = 18 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path 
+      d="M20.058 9.72255C21.0065 9.18858 21.4808 8.9216 21.7404 8.49142C22 8.06124 22 7.54232 22 6.50448V5.81466C22 4.48782 22 3.8244 21.5607 3.4122C21.1213 3 20.4142 3 19 3H5C3.58579 3 2.87868 3 2.43934 3.4122C2 3.8244 2 4.48782 2 5.81466V6.50448C2 7.54232 2 8.06124 2.2596 8.49142C2.5192 8.9216 2.99347 9.18858 3.94202 9.72255L6.85504 11.3624C7.49146 11.7206 7.80967 11.8998 8.03751 12.0976C8.51199 12.5095 8.80408 12.9935 8.93644 13.5872C9 13.8722 9 14.2058 9 14.8729L9 17.5424C9 18.452 9 18.9067 9.25192 19.2613C9.50385 19.6158 9.95128 19.7907 10.8462 20.1406C12.7248 20.875 13.6641 21.2422 14.3321 20.8244C15 20.4066 15 19.4519 15 17.5424V14.8729C15 14.2058 15 13.8722 15.0636 13.5872C15.1959 12.9935 15.488 12.5095 15.9625 12.0976" 
+      stroke={color} 
+      strokeWidth="1.5" 
+      strokeLinecap="round"
+    />
+  </Svg>
+);
 
 interface CalendarEvent {
   id: string;
@@ -46,6 +60,15 @@ const CalendarScreen = (): React.JSX.Element => {
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Cambiar default a 'day'
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  
+  // Estados para filtro
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [selectedWorkers, setSelectedWorkers] = useState<string[]>(['1', '2', '3', '4', '5']); // Inicializar con todas las trabajadoras
+  const [onlyMyTasks, setOnlyMyTasks] = useState(false);
+  
+  // Estados para detalles de cita
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   // Variables para zoom solamente
   const scale = useRef(new Animated.Value(1)).current;
@@ -99,6 +122,111 @@ const CalendarScreen = (): React.JSX.Element => {
     { id: '4', name: 'Andrea', color: '#2ecc71' },    // Verde
     { id: '5', name: 'Isabel', color: '#f39c12' },    // Naranja
   ];
+
+  // Funciones para el filtro
+  const handleWorkerToggle = (workerId: string) => {
+    setSelectedWorkers(prev => 
+      prev.includes(workerId) 
+        ? prev.filter(id => id !== workerId)
+        : [...prev, workerId]
+    );
+  };
+
+  const applyFilters = () => {
+    // Si no hay trabajadoras seleccionadas, seleccionar todas por defecto
+    if (selectedWorkers.length === 0) {
+      setSelectedWorkers(workers.map(w => w.id));
+    }
+    setShowFilterModal(false);
+  };
+
+  const setAllWorkers = () => {
+    setSelectedWorkers(workers.map(w => w.id));
+  };
+
+  const clearAllWorkers = () => {
+    setSelectedWorkers([]);
+  };
+
+  // Funciones para detalles de cita
+  const openEventDetails = (event: CalendarEvent) => {
+    console.log('Opening event details:', event);
+    // Validar que el evento tenga los campos requeridos
+    const validEvent = {
+      ...event,
+      title: event.title || 'Sin título',
+      worker: event.worker || 'Sin asignar',
+      startTime: event.startTime || '00:00',
+      endTime: event.endTime || '01:00',
+      date: event.date || '2025-08-21'
+    };
+    setSelectedEvent(validEvent);
+    setShowEventModal(true);
+  };
+
+  const closeEventDetails = () => {
+    setShowEventModal(false);
+    setSelectedEvent(null);
+  };
+
+  // Función para calcular la duración
+  const calculateDuration = (startTime: string, endTime: string) => {
+    if (!startTime || !endTime) return '1 hora';
+    
+    const start = new Date(`2000-01-01T${startTime}:00`);
+    const end = new Date(`2000-01-01T${endTime}:00`);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return '1 hora';
+    
+    const diffMs = end.getTime() - start.getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0 && minutes > 0) {
+      return `${hours}h ${minutes}min`;
+    } else if (hours > 0) {
+      return `${hours} hora${hours > 1 ? 's' : ''}`;
+    } else if (minutes > 0) {
+      return `${minutes} min`;
+    }
+    
+    return '30 min';
+  };
+
+  // Función para formatear fecha de manera segura
+  const formatEventDate = (dateString: string) => {
+    if (!dateString) return 'Fecha no disponible';
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Fecha no disponible';
+    
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  const getVisibleWorkers = () => {
+    if (selectedWorkers.length === 0) {
+      return workers; // Si no hay trabajadoras seleccionadas, mostrar todas
+    }
+    return workers.filter(worker => selectedWorkers.includes(worker.id));
+  };
+
+  // Calcular ancho dinámico de columnas basándose en trabajadoras visibles
+  const getColumnWidth = () => {
+    const visibleWorkers = getVisibleWorkers();
+    const minWidth = 120;
+    const maxWidth = 180;
+    const availableWidth = width - 80; // Restamos espacio para la columna de tiempo
+    
+    if (visibleWorkers.length === 0) return minWidth;
+    
+    const calculatedWidth = availableWidth / visibleWorkers.length;
+    return Math.max(minWidth, Math.min(maxWidth, calculatedWidth));
+  };
 
   // Horarios del día (de 9:00 AM a 6:00 PM)
   const timeSlots = [
@@ -306,7 +434,21 @@ const CalendarScreen = (): React.JSX.Element => {
   // Obtener eventos para una fecha específica
   const getEventsForDate = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    return events.filter(event => event.date === dateString);
+    return events.filter(event => {
+      // Filtrar por fecha
+      if (event.date !== dateString) return false;
+      
+      // Aplicar filtros de trabajadoras
+      if (selectedWorkers.length > 0) {
+        const workerName = event.worker;
+        const workerId = workers.find(w => w.name === workerName)?.id;
+        if (workerId && !selectedWorkers.includes(workerId)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   };
 
   const renderHeader = () => (
@@ -325,8 +467,12 @@ const CalendarScreen = (): React.JSX.Element => {
           </TouchableOpacity>
           
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.filterButton}>
-              <Text style={styles.filterButtonText}>🔧</Text>
+            <TouchableOpacity 
+              style={styles.filterButton}
+              onPress={() => setShowFilterModal(true)}
+            >
+              <FilterIcon color="#007AFF" size={18} />
+              <Text style={styles.filterButtonText}>Filtrar</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -435,8 +581,8 @@ const CalendarScreen = (): React.JSX.Element => {
             }}
           >
             <View style={styles.workersHeaderContent}>
-              {workers.map(worker => (
-                <View key={worker.id} style={styles.workerColumnFixed}>
+              {getVisibleWorkers().map(worker => (
+                <View key={worker.id} style={[styles.workerColumnFixed, { width: getColumnWidth() }]}>
                   <Text style={styles.workerName}>{worker.name}</Text>
                 </View>
               ))}
@@ -527,18 +673,20 @@ const CalendarScreen = (): React.JSX.Element => {
                 >
                   {timeSlots.map((time, index) => (
                     <View key={time} style={styles.timeRowContent}>
-                      {workers.map(worker => {
+                      {getVisibleWorkers().map(worker => {
                         const event = getEventForWorkerAtTime(worker.name, time);
                         return (
-                          <View key={worker.id} style={styles.workerTimeSlotFixed}>
+                          <View key={worker.id} style={[styles.workerTimeSlotFixed, { width: getColumnWidth() }]}>
                             {event && isEventStart(event, time) && (
-                              <View 
+                              <TouchableOpacity 
                                 style={[
                                   styles.appointmentCard,
                                   { 
                                     height: getEventHeight(event.startTime, event.endTime),
                                   }
                                 ]}
+                                onPress={() => openEventDetails(event)}
+                                activeOpacity={0.7}
                               >
                                 <Text style={styles.appointmentTime}>
                                   {event.startTime} - {event.endTime}
@@ -553,7 +701,7 @@ const CalendarScreen = (): React.JSX.Element => {
                                     { backgroundColor: worker.color }
                                   ]}
                                 />
-                              </View>
+                              </TouchableOpacity>
                             )}
                           </View>
                         );
@@ -741,6 +889,181 @@ const CalendarScreen = (): React.JSX.Element => {
           </View>
         </>
       )}
+
+      {/* Modal de Filtro */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showFilterModal}
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.filterModal}>
+            <View style={styles.filterHeader}>
+              <TouchableOpacity 
+                onPress={() => setShowFilterModal(false)}
+                style={styles.backButton}
+              >
+                <FilterIcon color="#007AFF" size={18} />
+                <Text style={styles.backButtonText}>Filtrar</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.filterContent}>
+              {/* Solo yo */}
+              <View style={styles.filterOption}>
+                <TouchableOpacity 
+                  style={styles.checkbox}
+                  onPress={() => setOnlyMyTasks(!onlyMyTasks)}
+                >
+                  <Text style={styles.checkboxIcon}>
+                    {onlyMyTasks ? '☑' : '☐'}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.filterOptionText}>Sólo yo</Text>
+              </View>
+
+              {/* Todos los empleados */}
+              <View style={styles.filterOption}>
+                <TouchableOpacity 
+                  style={styles.checkbox}
+                  onPress={() => {
+                    if (selectedWorkers.length === workers.length) {
+                      clearAllWorkers();
+                    } else {
+                      setAllWorkers();
+                    }
+                  }}
+                >
+                  <Text style={styles.checkboxIcon}>
+                    {selectedWorkers.length === workers.length ? '☑' : '☐'}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.filterOptionText}>Todos los empleados</Text>
+              </View>
+
+              {/* Lista de trabajadoras */}
+              {workers.map((worker) => (
+                <View key={worker.id} style={styles.filterOption}>
+                  <TouchableOpacity 
+                    style={styles.checkbox}
+                    onPress={() => handleWorkerToggle(worker.id)}
+                  >
+                    <Text style={styles.checkboxIcon}>
+                      {selectedWorkers.includes(worker.id) ? '☑' : '☐'}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={styles.filterOptionText}>{worker.name}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.filterButtons}>
+              <TouchableOpacity 
+                style={styles.presetButton}
+                onPress={() => {
+                  setAllWorkers();
+                  setOnlyMyTasks(false);
+                }}
+              >
+                <Text style={styles.presetButtonText}>Predeterminado</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.applyButton}
+                onPress={applyFilters}
+              >
+                <Text style={styles.applyButtonText}>Aplicar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Detalles de Cita */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showEventModal}
+        onRequestClose={closeEventDetails}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.eventModal}>
+            <View style={styles.eventModalHeader}>
+              <TouchableOpacity 
+                onPress={closeEventDetails}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+              <Text style={styles.eventModalTitle}>Detalles de la Cita</Text>
+              <View style={{ width: 40 }} />
+            </View>
+
+            <View style={styles.eventModalContent}>
+              {selectedEvent ? (
+                <>
+                  <View style={styles.eventDetailRow}>
+                    <Text style={styles.eventDetailLabel}>Servicio:</Text>
+                    <Text style={styles.eventDetailValue}>
+                      {String(selectedEvent?.title || 'Sin título')}
+                    </Text>
+                  </View>
+
+                  <View style={styles.eventDetailRow}>
+                    <Text style={styles.eventDetailLabel}>Trabajadora:</Text>
+                    <Text style={styles.eventDetailValue}>
+                      {String(selectedEvent?.worker || 'Sin asignar')}
+                    </Text>
+                  </View>
+
+                  <View style={styles.eventDetailRow}>
+                    <Text style={styles.eventDetailLabel}>Fecha:</Text>
+                    <Text style={styles.eventDetailValue}>
+                      {String(formatEventDate(selectedEvent?.date || '2025-08-21'))}
+                    </Text>
+                  </View>
+
+                  <View style={styles.eventDetailRow}>
+                    <Text style={styles.eventDetailLabel}>Horario:</Text>
+                    <Text style={styles.eventDetailValue}>
+                      {String(selectedEvent?.startTime || '00:00')} - {String(selectedEvent?.endTime || '01:00')}
+                    </Text>
+                  </View>
+
+                  <View style={styles.eventDetailRow}>
+                    <Text style={styles.eventDetailLabel}>Duración:</Text>
+                    <Text style={styles.eventDetailValue}>
+                      {String(calculateDuration(
+                        selectedEvent?.startTime || '00:00', 
+                        selectedEvent?.endTime || '01:00'
+                      ))}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <View>
+                  <Text style={styles.eventDetailValue}>Cargando detalles...</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.eventModalActions}>
+              <TouchableOpacity 
+                style={styles.editButton}
+                onPress={closeEventDetails}
+              >
+                <Text style={styles.editButtonText}>Editar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.deleteButton}
+                onPress={closeEventDetails}
+              >
+                <Text style={styles.deleteButtonText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <View style={[
         styles.bottomNavigation,
@@ -1230,15 +1553,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterButton: {
-    width: 40,
-    height: 40,
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f0f8ff',
     borderRadius: 20,
+    gap: 6,
   },
   filterButtonText: {
-    fontSize: 18,
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '500',
   },
 
   // Estilos para el modal de selector de mes
@@ -1446,6 +1773,204 @@ const styles = StyleSheet.create({
     fontSize: 16, // Reducido de 18 a 16
     fontWeight: '600',
     color: '#2c3e50',
+  },
+
+  // Estilos para el modal de filtro
+  filterModal: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  filterHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  backButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  filterContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  checkbox: {
+    marginRight: 15,
+  },
+  checkboxIcon: {
+    fontSize: 24,
+    color: '#007AFF',
+  },
+  filterOptionText: {
+    fontSize: 18,
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    gap: 12,
+  },
+  presetButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    alignItems: 'center',
+  },
+  presetButtonText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  applyButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#2c3e50',
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+
+  // Estilos para el modal de detalles de cita
+  eventModal: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    bottom: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  eventModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  eventModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  eventModalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  eventDetailRow: {
+    marginBottom: 20,
+  },
+  eventDetailLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  eventDetailValue: {
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '400',
+  },
+  workerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  workerColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  eventModalActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    gap: 12,
+  },
+  editButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    alignItems: 'center',
+  },
+  editButtonText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
   },
 });
 
