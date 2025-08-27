@@ -28,7 +28,6 @@ module.exports = {
   resolve: {
     alias: {
       'react-native$': 'react-native-web',
-      'react-native-gesture-handler': 'react-native-gesture-handler/lib/commonjs/index.web.js',
       'react-native-reanimated': 'react-native-reanimated/lib/reanimated2/index.web.js',
     },
     extensions: ['.web.js', '.js', '.web.ts', '.ts', '.web.tsx', '.tsx', '.json'],

@@ -18,7 +18,6 @@ import {
   Dimensions,
   Platform,
   Animated,
-  PanResponder,
   Modal,
   Easing,
 } from 'react-native';
