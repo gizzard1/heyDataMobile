@@ -795,15 +795,15 @@ const CalendarScreen = (): React.JSX.Element => {
                             {event.startTime} - {event.endTime}
                           </Text>
                           <Text style={styles.appointmentTitle}>
-                            {event.title}
+                            {event.cliente.nombre}
                           </Text>
-                          {/* Pequeño indicador de color para la trabajadora */}
-                          <View 
-                            style={[
-                              styles.workerColorIndicator,
-                              { backgroundColor: worker.color }
-                            ]}
-                          />
+                          <View style={styles.servicesList}>
+                            {event.detalles.map((detalle, index) => (
+                              <Text key={index} style={styles.serviceItem}>
+                                • {detalle.servicio.nombre}
+                              </Text>
+                            ))}
+                          </View>
                         </TouchableOpacity>
                       ));
                     })}
@@ -1631,42 +1631,41 @@ const styles = StyleSheet.create({
     marginBottom: 2, // Solo margen inferior
     backgroundColor: '#ffffff',
     elevation: 0, // Sin sombra en Android
-    borderWidth: 1, // Línea más delgada
-    borderStyle: 'solid', // Línea continua en lugar de punteada
-    borderColor: '#d0d0d0', // Color gris suave para línea continua
+    borderWidth: 2, // Borde más grueso general
+    borderLeftWidth: 5, // Borde izquierdo aún más grueso
+    borderStyle: 'solid', // Línea continua
+    borderColor: '#3498db', // Color azul más marcado para el borde
+    borderLeftColor: '#2980b9', // Color azul más oscuro para el borde izquierdo
     // Ocultar las líneas de la cuadrícula
     overflow: 'hidden',
     zIndex: 100, // Aumentado significativamente para estar siempre encima
   },
   appointmentTime: {
-    fontSize: 11, // Revertido a tamaño original
+    fontSize: 13, // Aumentado de 11 a 13
     color: '#7f8c8d',
     fontWeight: '600',
     marginBottom: 4, // Revertido a tamaño original
     textAlign: 'center',
   },
   appointmentTitle: {
-    fontSize: 12, // Reducido de 14 a 12 para texto más pequeño
+    fontSize: 14, // Aumentado de 12 a 14
     color: '#2c3e50',
     fontWeight: '600', // Reducido de 700 a 600 para menos peso
-    lineHeight: 14, // Ajustado proporcionalmente
+    lineHeight: 16, // Ajustado proporcionalmente
     textAlign: 'center',
     marginTop: 2, // Revertido a tamaño original
+    marginBottom: 4, // Espacio antes de la lista de servicios
   },
-  workerColorIndicator: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 3,
+  servicesList: {
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
+  serviceItem: {
+    fontSize: 12, // Aumentado de 10 a 12
+    color: '#34495e',
+    lineHeight: 16, // Ajustado proporcionalmente
+    marginBottom: 2,
+    textAlign: 'left',
   },
 
   // Estilos para el header de vista diaria
