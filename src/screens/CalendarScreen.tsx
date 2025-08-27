@@ -104,14 +104,44 @@ const SettingsIcon = ({ color = '#FFFFFF', size = 20 }) => (
   </Svg>
 );
 
+interface Cliente {
+  id: string;
+  nombre: string;
+  telefono?: string;
+}
+
+interface Servicio {
+  id: string;
+  nombre: string;
+  precio: number;
+  duracionMinutos: number;
+}
+
+interface DetalleCita {
+  id: string;
+  servicioId: string;
+  servicio: Servicio;
+  empleadoId: string;
+  empleado: Worker;
+  inicioServicio: string; // HH:MM
+  duracionMinutos: number;
+  precio: number;
+}
+
 interface CalendarEvent {
   id: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  color: string;
+  clienteId: string;
+  cliente: Cliente;
+  startTime: string; // Inicio de toda la cita
+  endTime: string;   // Fin de toda la cita
   date: string; // YYYY-MM-DD format
-  worker: string; // Trabajadora asignada
+  detalles: DetalleCita[]; // Array de servicios/empleados
+  estado: 'pendiente' | 'confirmada' | 'en_proceso' | 'completada' | 'cancelada';
+  total: number;
+  // Para compatibilidad con el código actual
+  title?: string;
+  color?: string;
+  worker?: string;
 }
 
 interface Worker {
@@ -156,7 +186,7 @@ const CalendarScreen = (): React.JSX.Element => {
 
   // Solo zoom, sin pan para evitar bugs
   const handleDoubleTap = () => {
-    const newScale = lastScale.current >= 1.5 ? 1 : 2;
+    const newScale = lastScale.current >= 1.5 ? 1 : 1.8;
     lastScale.current = newScale;
     Animated.timing(scale, {
       toValue: newScale,
@@ -165,17 +195,17 @@ const CalendarScreen = (): React.JSX.Element => {
     }).start();
   };
 
-  // Para web - manejar zoom con rueda del mouse
+  // Para web - manejar zoom con rueda del mouse con intervalos proporcionales
   const handleWheel = (event: any) => {
     if (Platform.OS === 'web') {
       event.preventDefault();
-      const deltaScale = event.deltaY > 0 ? -0.1 : 0.1;
-      const newScale = Math.max(0.8, Math.min(3, lastScale.current + deltaScale));
+      const deltaScale = event.deltaY > 0 ? -0.15 : 0.15;
+      const newScale = Math.max(0.7, Math.min(2.5, lastScale.current + deltaScale));
       lastScale.current = newScale;
       
       Animated.timing(scale, {
         toValue: newScale,
-        duration: 100,
+        duration: 150,
         useNativeDriver: false,
       }).start();
     }
@@ -295,122 +325,111 @@ const CalendarScreen = (): React.JSX.Element => {
     return Math.max(minWidth, Math.min(maxWidth, calculatedWidth));
   };
 
-  // Horarios del día (de 9:00 AM a 6:00 PM)
+  // Horarios del día (solo horas completas para agenda limpia)
   const timeSlots = [
-    '9:00', '9:30', '10:00', '10:30', '11:00', '11:30',
-    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-    '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'
+    '9:00', '10:00', '11:00', '12:00', '13:00', 
+    '14:00', '15:00', '16:00', '17:00', '18:00'
   ];
 
-  // Eventos de ejemplo
+  // Servicios disponibles
+  const servicios: Servicio[] = [
+    { id: '1', nombre: 'Corte de cabello', precio: 300, duracionMinutos: 60 },
+    { id: '2', nombre: 'Tinte', precio: 500, duracionMinutos: 90 },
+    { id: '3', nombre: 'Luces', precio: 800, duracionMinutos: 120 },
+    { id: '4', nombre: 'Peinado', precio: 250, duracionMinutos: 45 },
+    { id: '5', nombre: 'Manicure', precio: 200, duracionMinutos: 60 },
+    { id: '6', nombre: 'Pedicure', precio: 250, duracionMinutos: 60 },
+  ];
+
+  // Eventos de ejemplo con nueva estructura
   const [events, setEvents] = useState<CalendarEvent[]>([
     {
       id: '1',
-      title: 'Ixchel - Luces nuevas',
+      clienteId: 'c1',
+      cliente: { id: 'c1', nombre: 'Ixchel García', telefono: '555-0001' },
       startTime: '10:00',
-      endTime: '11:00',
-      color: '#3498db',
+      endTime: '12:00',
       date: '2025-08-21',
+      estado: 'confirmada',
+      total: 800,
+      detalles: [
+        {
+          id: 'd1',
+          servicioId: '3',
+          servicio: servicios[2], // Luces
+          empleadoId: '1',
+          empleado: workers[0], // Norma
+          inicioServicio: '10:00',
+          duracionMinutos: 120,
+          precio: 800,
+        }
+      ],
+      // Compatibilidad
+      title: 'Ixchel García - Luces',
+      color: '#3498db',
       worker: 'Norma',
     },
     {
       id: '2',
-      title: 'Adriana Hernández - Corte de dama',
+      clienteId: 'c2',
+      cliente: { id: 'c2', nombre: 'Adriana Hernández', telefono: '555-0002' },
       startTime: '11:00',
-      endTime: '12:00',
-      color: '#e74c3c',
+      endTime: '12:30',
       date: '2025-08-21',
+      estado: 'confirmada',
+      total: 550,
+      detalles: [
+        {
+          id: 'd2',
+          servicioId: '1',
+          servicio: servicios[0], // Corte
+          empleadoId: '2',
+          empleado: workers[1], // Brenda
+          inicioServicio: '11:00',
+          duracionMinutos: 60,
+          precio: 300,
+        },
+        {
+          id: 'd3',
+          servicioId: '4',
+          servicio: servicios[3], // Peinado
+          empleadoId: '2',
+          empleado: workers[1], // Brenda
+          inicioServicio: '12:00',
+          duracionMinutos: 45,
+          precio: 250,
+        }
+      ],
+      // Compatibilidad
+      title: 'Adriana Hernández - Corte + Peinado',
+      color: '#e74c3c',
       worker: 'Brenda',
     },
     {
       id: '3',
-      title: 'Sandra - Peinado',
+      clienteId: 'c3',
+      cliente: { id: 'c3', nombre: 'Sandra López', telefono: '555-0003' },
       startTime: '14:00',
       endTime: '15:00',
+      date: '2025-08-21',
+      estado: 'pendiente',
+      total: 250,
+      detalles: [
+        {
+          id: 'd4',
+          servicioId: '4',
+          servicio: servicios[3], // Peinado
+          empleadoId: '3',
+          empleado: workers[2], // Susana
+          inicioServicio: '14:00',
+          duracionMinutos: 45,
+          precio: 250,
+        }
+      ],
+      // Compatibilidad
+      title: 'Sandra López - Peinado',
       color: '#9b59b6',
-      date: '2025-08-21',
       worker: 'Susana',
-    },
-    {
-      id: '4',
-      title: 'María González - Tinte',
-      startTime: '16:00',
-      endTime: '17:00',
-      color: '#2ecc71',
-      date: '2025-08-21',
-      worker: 'Andrea',
-    },
-    {
-      id: '5',
-      title: 'Carmen - Manicure',
-      startTime: '9:00',
-      endTime: '10:00',
-      color: '#f39c12',
-      date: '2025-08-21',
-      worker: 'Isabel',
-    },
-    {
-      id: '6',
-      title: 'Ana López - Corte y color',
-      startTime: '12:00',
-      endTime: '13:00',
-      color: '#3498db',
-      date: '2025-08-21',
-      worker: 'Norma',
-    },
-    {
-      id: '7',
-      title: 'Victoria - Pedicure',
-      startTime: '15:00',
-      endTime: '16:00',
-      color: '#e74c3c',
-      date: '2025-08-21',
-      worker: 'Brenda',
-    },
-    {
-      id: '8',
-      title: 'Sofía - Extensiones',
-      startTime: '11:00',
-      endTime: '12:00',
-      color: '#9b59b6',
-      date: '2025-08-21',
-      worker: 'Susana',
-    },
-    {
-      id: '9',
-      title: 'Patricia - Tratamiento capilar',
-      startTime: '9:00',
-      endTime: '10:00',
-      color: '#2ecc71',
-      date: '2025-08-21',
-      worker: 'Andrea',
-    },
-    {
-      id: '10',
-      title: 'Claudia - Maquillaje',
-      startTime: '13:00',
-      endTime: '14:00',
-      color: '#f39c12',
-      date: '2025-08-21',
-      worker: 'Isabel',
-    },
-    {
-      id: '11',
-      title: 'Fernanda - Corte infantil',
-      startTime: '17:00',
-      endTime: '18:00',
-      color: '#3498db',
-      date: '2025-08-21',
-      worker: 'Norma',
-    },
-    {
-      id: '12',
-      title: 'Gabriela - Alisado',
-      startTime: '10:00',
-      endTime: '11:00',
-      color: '#e74c3c',
-      date: '2025-08-21',
-      worker: 'Brenda',
     },
   ]);
 
@@ -1069,20 +1088,24 @@ const CalendarScreen = (): React.JSX.Element => {
             <View style={styles.eventModalContent}>
               {selectedEvent ? (
                 <>
+                  {/* Información del Cliente */}
                   <View style={styles.eventDetailRow}>
-                    <Text style={styles.eventDetailLabel}>Servicio:</Text>
+                    <Text style={styles.eventDetailLabel}>Cliente:</Text>
                     <Text style={styles.eventDetailValue}>
-                      {String(selectedEvent?.title || 'Sin título')}
+                      {String(selectedEvent?.cliente?.nombre || selectedEvent?.title || 'Sin cliente')}
                     </Text>
                   </View>
 
-                  <View style={styles.eventDetailRow}>
-                    <Text style={styles.eventDetailLabel}>Trabajadora:</Text>
-                    <Text style={styles.eventDetailValue}>
-                      {String(selectedEvent?.worker || 'Sin asignar')}
-                    </Text>
-                  </View>
+                  {selectedEvent?.cliente?.telefono && (
+                    <View style={styles.eventDetailRow}>
+                      <Text style={styles.eventDetailLabel}>Teléfono:</Text>
+                      <Text style={styles.eventDetailValue}>
+                        {String(selectedEvent.cliente.telefono)}
+                      </Text>
+                    </View>
+                  )}
 
+                  {/* Fecha y Horario General */}
                   <View style={styles.eventDetailRow}>
                     <Text style={styles.eventDetailLabel}>Fecha:</Text>
                     <Text style={styles.eventDetailValue}>
@@ -1091,19 +1114,58 @@ const CalendarScreen = (): React.JSX.Element => {
                   </View>
 
                   <View style={styles.eventDetailRow}>
-                    <Text style={styles.eventDetailLabel}>Horario:</Text>
+                    <Text style={styles.eventDetailLabel}>Horario Total:</Text>
                     <Text style={styles.eventDetailValue}>
                       {String(selectedEvent?.startTime || '00:00')} - {String(selectedEvent?.endTime || '01:00')}
                     </Text>
                   </View>
 
+                  {/* Estado de la Cita */}
                   <View style={styles.eventDetailRow}>
-                    <Text style={styles.eventDetailLabel}>Duración:</Text>
-                    <Text style={styles.eventDetailValue}>
-                      {String(calculateDuration(
-                        selectedEvent?.startTime || '00:00', 
-                        selectedEvent?.endTime || '01:00'
-                      ))}
+                    <Text style={styles.eventDetailLabel}>Estado:</Text>
+                    <Text style={[styles.eventDetailValue, {
+                      color: selectedEvent?.estado === 'confirmada' ? '#2ecc71' : 
+                             selectedEvent?.estado === 'pendiente' ? '#f39c12' : '#666'
+                    }]}>
+                      {String(selectedEvent?.estado || 'pendiente').toUpperCase()}
+                    </Text>
+                  </View>
+
+                  {/* Detalles de Servicios */}
+                  <View style={styles.serviceDetailsSection}>
+                    <Text style={styles.serviceDetailsTitle}>Servicios:</Text>
+                    {selectedEvent?.detalles?.map((detalle, index) => (
+                      <View key={detalle.id || index} style={styles.serviceDetailCard}>
+                        <View style={styles.serviceDetailHeader}>
+                          <Text style={styles.serviceDetailName}>
+                            {String(detalle.servicio?.nombre || 'Servicio')}
+                          </Text>
+                          <Text style={styles.serviceDetailPrice}>
+                            ${String(detalle.precio || 0)}
+                          </Text>
+                        </View>
+                        <View style={styles.serviceDetailInfo}>
+                          <Text style={styles.serviceDetailText}>
+                            Empleada: {String(detalle.empleado?.name || 'Sin asignar')}
+                          </Text>
+                          <Text style={styles.serviceDetailText}>
+                            Inicio: {String(detalle.inicioServicio || '00:00')}
+                          </Text>
+                          <Text style={styles.serviceDetailText}>
+                            Duración: {String(detalle.duracionMinutos || 0)} min
+                          </Text>
+                        </View>
+                      </View>
+                    )) || (
+                      <Text style={styles.serviceDetailText}>No hay servicios registrados</Text>
+                    )}
+                  </View>
+
+                  {/* Total */}
+                  <View style={styles.totalSection}>
+                    <Text style={styles.totalLabel}>Total a pagar:</Text>
+                    <Text style={styles.totalAmount}>
+                      ${String(selectedEvent?.total || 0)}
                     </Text>
                   </View>
                 </>
@@ -1120,6 +1182,12 @@ const CalendarScreen = (): React.JSX.Element => {
                 onPress={closeEventDetails}
               >
                 <Text style={styles.editButtonText}>Editar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.chargeButton}
+                onPress={closeEventDetails}
+              >
+                <Text style={styles.chargeButtonText}>Cobro</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.deleteButton}
@@ -2007,12 +2075,12 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-    gap: 12,
+    gap: 8,
   },
   editButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#007AFF',
@@ -2026,12 +2094,94 @@ const styles = StyleSheet.create({
   deleteButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: '#FF3B30',
     alignItems: 'center',
   },
   deleteButtonText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+
+  // Estilos para detalles de servicios
+  serviceDetailsSection: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  serviceDetailsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  serviceDetailCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007AFF',
+  },
+  serviceDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  serviceDetailName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2c3e50',
+    flex: 1,
+  },
+  serviceDetailPrice: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#27ae60',
+  },
+  serviceDetailInfo: {
+    gap: 4,
+  },
+  serviceDetailText: {
+    fontSize: 13,
+    color: '#666666',
+  },
+  
+  // Estilos para el total
+  totalSection: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 2,
+    borderTopColor: '#007AFF',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  totalAmount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#27ae60',
+  },
+
+  // Botón de cobro
+  chargeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#27ae60',
+    alignItems: 'center',
+  },
+  chargeButtonText: {
     fontSize: 16,
     color: '#ffffff',
     fontWeight: '600',
