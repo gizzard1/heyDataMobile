@@ -376,11 +376,9 @@ const CalendarScreen = (): React.JSX.Element => {
     // Agregar la fila de la hora principal
     acc.push({ time, isMainHour: true });
     
-    // Agregar 3 filas vacías después de cada hora (excepto la última)
-    if (index < mainTimeSlots.length - 1) {
-      for (let i = 1; i <= 3; i++) {
-        acc.push({ time: `${time}-empty-${i}`, isMainHour: false });
-      }
+    // Agregar 3 filas vacías después de cada hora (incluyendo la última)
+    for (let i = 1; i <= 3; i++) {
+      acc.push({ time: `${time}-empty-${i}`, isMainHour: false });
     }
     
     return acc;
@@ -1503,6 +1501,7 @@ const styles = StyleSheet.create({
   },
   weekContent: {
     flex: 1,
+    paddingBottom: 120, // Espacio extra para scroll completo
   },
   weekHourRow: {
     flexDirection: 'row',
@@ -1543,6 +1542,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20, // Esquinas inferiores redondeadas
     borderBottomRightRadius: 20, // Esquinas inferiores redondeadas
     overflow: 'hidden', // Para que las esquinas se vean correctamente
+    paddingBottom: 20, // Pequeño padding para mejor visualización
   },
   monthHeader: {
     flexDirection: 'row',
@@ -1685,6 +1685,7 @@ const styles = StyleSheet.create({
   },
   timeScrollView: {
     flex: 1,
+    paddingBottom: 120, // Mismo padding que contentScrollView para sincronización
   },
   timeRow: {
     flexDirection: 'row',
@@ -1925,6 +1926,7 @@ const styles = StyleSheet.create({
   },
   contentScrollView: {
     flex: 1,
+    paddingBottom: 120, // Espacio extra para las filas después de 18:00
   },
   calendarGrid: {
     flex: 1,
