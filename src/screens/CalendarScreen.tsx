@@ -20,6 +20,7 @@ import {
   Animated,
   PanResponder,
   Modal,
+  Easing,
 } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
 
@@ -226,7 +227,26 @@ const CalendarScreen = (): React.JSX.Element => {
   // Banderas para evitar sincronización circular
   const isScrollingFromHeader = useRef(false);
   const isScrollingFromContent = useRef(false);
+  const isScrollingFromTime = useRef(false);
+  const isScrollingFromMain = useRef(false);
   const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Funciones helper para scroll suave
+  const smoothScrollToTime = (hour: number) => {
+    const targetY = (hour - 6) * 140; // 35px * 4 rows per hour
+    if (mainScrollRef.current && timeScrollRef.current) {
+      mainScrollRef.current.scrollTo({ y: targetY, animated: true });
+      timeScrollRef.current.scrollTo({ y: targetY, animated: true });
+    }
+  };
+
+  const smoothScrollToWorker = (workerIndex: number) => {
+    const targetX = workerIndex * 120; // Ancho de columna de trabajadora
+    if (headerScrollRef.current && contentScrollRef.current) {
+      headerScrollRef.current.scrollTo({ x: targetX, animated: true });
+      contentScrollRef.current.scrollTo({ x: targetX, animated: true });
+    }
+  };
 
 
 
@@ -701,9 +721,12 @@ const CalendarScreen = (): React.JSX.Element => {
             horizontal
             showsHorizontalScrollIndicator={false}
             ref={headerScrollRef}
-            scrollEventThrottle={32}
+            scrollEventThrottle={16}
             removeClippedSubviews={true}
             directionalLockEnabled={true}
+            decelerationRate="fast"
+            bounces={false}
+            pagingEnabled={false}
             onScroll={(event) => {
               if (isScrollingFromContent.current) return;
               
@@ -740,13 +763,25 @@ const CalendarScreen = (): React.JSX.Element => {
             <ScrollView
               showsVerticalScrollIndicator={false}
               ref={timeScrollRef}
-              scrollEventThrottle={32}
+              scrollEventThrottle={16}
               removeClippedSubviews={true}
+              decelerationRate="fast"
+              bounces={true}
               onScroll={(event) => {
+                if (isScrollingFromMain.current) return;
+                
                 const scrollY = event.nativeEvent.contentOffset.y;
+                isScrollingFromTime.current = true;
+                
                 if (mainScrollRef.current) {
                   mainScrollRef.current.scrollTo({ y: scrollY, animated: false });
                 }
+                
+                // Limpiar la bandera más rápido para mejor sincronización
+                if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+                scrollTimeout.current = setTimeout(() => {
+                  isScrollingFromTime.current = false;
+                }, 16);
               }}
             >
               {timeSlots.map((timeSlot, index) => (
@@ -771,22 +806,38 @@ const CalendarScreen = (): React.JSX.Element => {
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             ref={mainScrollRef}
-            scrollEventThrottle={32}
+            scrollEventThrottle={16}
             removeClippedSubviews={true}
+            decelerationRate="fast"
+            bounces={true}
+            nestedScrollEnabled={true}
             onScroll={(event) => {
+              if (isScrollingFromTime.current) return;
+              
               const scrollY = event.nativeEvent.contentOffset.y;
+              isScrollingFromMain.current = true;
+              
               if (timeScrollRef.current) {
                 timeScrollRef.current.scrollTo({ y: scrollY, animated: false });
               }
+              
+              // Limpiar la bandera más rápido para mejor sincronización
+              if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+              scrollTimeout.current = setTimeout(() => {
+                isScrollingFromMain.current = false;
+              }, 16);
             }}
           >
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               ref={contentScrollRef}
-              scrollEventThrottle={32}
+              scrollEventThrottle={16}
               removeClippedSubviews={true}
               directionalLockEnabled={true}
+              decelerationRate="fast"
+              bounces={false}
+              nestedScrollEnabled={true}
               onScroll={(event) => {
                 if (isScrollingFromHeader.current) return;
                 
@@ -897,7 +948,13 @@ const CalendarScreen = (): React.JSX.Element => {
           ))}
         </View>
         
-        <ScrollView style={styles.weekContent} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.weekContent} 
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          decelerationRate="fast"
+          bounces={true}
+        >
           {Array.from({ length: 17 }, (_, i) => i + 6).map(hour => (
             <View key={hour} style={styles.weekHourRow}>
               <Text style={styles.weekHourLabel}>{`${hour}:00`}</Text>
@@ -929,7 +986,13 @@ const CalendarScreen = (): React.JSX.Element => {
     const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
     return (
-      <ScrollView style={styles.monthView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.monthView} 
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        decelerationRate="fast"
+        bounces={true}
+      >
         <View style={styles.monthHeader}>
           {weekDays.map((day, index) => (
             <Text key={index} style={styles.monthWeekDay}>{day}</Text>
