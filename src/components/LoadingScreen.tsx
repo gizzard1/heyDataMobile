@@ -11,7 +11,7 @@ interface LoadingScreenProps {
 
 const LoadingScreen: React.FC<LoadingScreenProps> = ({ 
   onFinish, 
-  duration = 3000
+  duration = 1500
 }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
