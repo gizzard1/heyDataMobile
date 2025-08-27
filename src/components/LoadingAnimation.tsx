@@ -36,7 +36,7 @@ const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
             // Mover de izquierda a derecha
             Animated.timing(positionAnim, {
               toValue: 1,
-              duration: 2000,
+              duration: 1000,
               useNativeDriver: true,
             }),
             // Animar el tamaño: pequeño -> un poco más grande -> pequeño

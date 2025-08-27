@@ -167,11 +167,7 @@ const CalendarScreen = (): React.JSX.Element => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
-  // Variables para zoom solamente
-  const scale = useRef(new Animated.Value(1)).current;
 
-  // Estado base para zoom
-  const lastScale = useRef(1);
 
   // Referencias para sincronizar scroll (estilo Excel)
   const headerScrollRef = useRef<ScrollView>(null);
@@ -184,32 +180,9 @@ const CalendarScreen = (): React.JSX.Element => {
   const isScrollingFromContent = useRef(false);
   const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Solo zoom, sin pan para evitar bugs
-  const handleDoubleTap = () => {
-    const newScale = lastScale.current >= 1.5 ? 1 : 1.8;
-    lastScale.current = newScale;
-    Animated.timing(scale, {
-      toValue: newScale,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  };
 
-  // Para web - manejar zoom con rueda del mouse con intervalos proporcionales
-  const handleWheel = (event: any) => {
-    if (Platform.OS === 'web') {
-      event.preventDefault();
-      const deltaScale = event.deltaY > 0 ? -0.15 : 0.15;
-      const newScale = Math.max(0.7, Math.min(2.5, lastScale.current + deltaScale));
-      lastScale.current = newScale;
-      
-      Animated.timing(scale, {
-        toValue: newScale,
-        duration: 150,
-        useNativeDriver: false,
-      }).start();
-    }
-  };
+
+
 
   // Trabajadoras
   const workers: Worker[] = [
@@ -315,8 +288,8 @@ const CalendarScreen = (): React.JSX.Element => {
   // Calcular ancho dinámico de columnas basándose en trabajadoras visibles
   const getColumnWidth = () => {
     const visibleWorkers = getVisibleWorkers();
-    const minWidth = 120;
-    const maxWidth = 180;
+    const minWidth = 200; // Aumentado de 160 a 200 (+25% más ancho)
+    const maxWidth = 280; // Aumentado de 220 a 280 (+27% más ancho)
     const availableWidth = width - 80; // Restamos espacio para la columna de tiempo
     
     if (visibleWorkers.length === 0) return minWidth;
@@ -326,10 +299,25 @@ const CalendarScreen = (): React.JSX.Element => {
   };
 
   // Horarios del día (solo horas completas para agenda limpia)
-  const timeSlots = [
+  const mainTimeSlots = [
     '9:00', '10:00', '11:00', '12:00', '13:00', 
     '14:00', '15:00', '16:00', '17:00', '18:00'
   ];
+
+  // Generar filas con espacios vacíos entre horas
+  const timeSlots = mainTimeSlots.reduce((acc, time, index) => {
+    // Agregar la fila de la hora principal
+    acc.push({ time, isMainHour: true });
+    
+    // Agregar 3 filas vacías después de cada hora (excepto la última)
+    if (index < mainTimeSlots.length - 1) {
+      for (let i = 1; i <= 3; i++) {
+        acc.push({ time: `${time}-empty-${i}`, isMainHour: false });
+      }
+    }
+    
+    return acc;
+  }, [] as { time: string; isMainHour: boolean }[]);
 
   // Servicios disponibles
   const servicios: Servicio[] = [
@@ -433,11 +421,7 @@ const CalendarScreen = (): React.JSX.Element => {
     },
   ]);
 
-  // Función para resetear zoom solamente
-  const resetTransform = () => {
-    Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-    lastScale.current = 1;
-  };
+
 
   // Obtener información del mes actual
   const getMonthInfo = (date: Date) => {
@@ -632,9 +616,32 @@ const CalendarScreen = (): React.JSX.Element => {
       const endTotalMin = endHour * 60 + endMin;
       const durationMin = endTotalMin - startTotalMin;
       
-      // Cada slot de 30 min = 50px, así que cada minuto = 50/30 ≈ 1.67px
-      const heightPerMinute = 50 / 30;
-      return Math.max(durationMin * heightPerMinute - 4, 40); // Mínimo 40px, restar 4px para el margen
+      // Cada slot de 15 min = 35px, así que cada minuto = 35/15 ≈ 2.33px
+      const heightPerMinute = 35 / 15;
+      return Math.max(durationMin * heightPerMinute - 4, 30); // Mínimo 30px, restar 4px para el margen
+    };
+
+    // Función para calcular la posición superior del evento
+    const getEventTopPosition = (startTime: string) => {
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      
+      // Encontrar el índice del slot de la hora de inicio
+      const startHourSlotIndex = timeSlots.findIndex(slot => 
+        slot.isMainHour && slot.time === `${startHour}:00`
+      );
+      
+      if (startHourSlotIndex === -1) return 0;
+      
+      // Calcular los minutos adicionales después de la hora
+      const additionalMinutes = startMin;
+      const rowHeight = 35;
+      
+      // Cada 15 minutos = 1 fila, así que dividimos los minutos adicionales entre 15
+      const additionalRows = Math.floor(additionalMinutes / 15);
+      const pixelsPerMinute = rowHeight / 15;
+      const remainingMinutes = additionalMinutes % 15;
+      
+      return (startHourSlotIndex + additionalRows) * rowHeight + (remainingMinutes * pixelsPerMinute);
     };
 
     return (
@@ -676,10 +683,7 @@ const CalendarScreen = (): React.JSX.Element => {
           </ScrollView>
         </View>
 
-        {/* Botón para resetear zoom */}
-        <TouchableOpacity style={styles.resetButton} onPress={resetTransform}>
-          <Text style={styles.resetButtonText}>↻</Text>
-        </TouchableOpacity>
+
 
         {/* Contenido principal con scroll bidireccional */}
         <View style={styles.mainContentContainer}>
@@ -697,9 +701,17 @@ const CalendarScreen = (): React.JSX.Element => {
                 }
               }}
             >
-              {timeSlots.map((time, index) => (
-                <View key={time} style={styles.timeSlotFixed}>
-                  <Text style={styles.timeLabel}>{time}</Text>
+              {timeSlots.map((timeSlot, index) => (
+                <View key={timeSlot.time} style={[
+                  styles.timeSlotFixed,
+                  timeSlot.isMainHour ? styles.mainHourSlot : styles.emptyHourSlot
+                ]}>
+                  <Text style={[
+                    styles.timeLabel,
+                    timeSlot.isMainHour ? styles.mainHourLabel : styles.emptyHourLabel
+                  ]}>
+                    {timeSlot.isMainHour ? timeSlot.time : ''}
+                  </Text>
                 </View>
               ))}
             </ScrollView>
@@ -744,58 +756,59 @@ const CalendarScreen = (): React.JSX.Element => {
                 }, 50);
               }}
             >
-              <Animated.View
-                style={[
-                  styles.zoomableContent,
-                  {
-                    transform: [{ scale: scale }],
-                  },
-                ]}
-              >
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={handleDoubleTap}
-                  style={styles.calendarGrid}
-                >
-                  {timeSlots.map((time, index) => (
-                    <View key={time} style={styles.timeRowContent}>
+              <View style={styles.calendarGrid}>
+                  {timeSlots.map((timeSlot, index) => (
+                    <View key={timeSlot.time} style={[
+                      styles.timeRowContent,
+                      timeSlot.isMainHour ? styles.mainHourRow : styles.emptyHourRow
+                    ]}>
                       {getVisibleWorkers().map(worker => {
-                        const event = getEventForWorkerAtTime(worker.name, time);
                         return (
                           <View key={worker.id} style={[styles.workerTimeSlotFixed, { width: getColumnWidth() }]}>
-                            {event && isEventStart(event, time) && (
-                              <TouchableOpacity 
-                                style={[
-                                  styles.appointmentCard,
-                                  { 
-                                    height: getEventHeight(event.startTime, event.endTime),
-                                  }
-                                ]}
-                                onPress={() => openEventDetails(event)}
-                                activeOpacity={0.7}
-                              >
-                                <Text style={styles.appointmentTime}>
-                                  {event.startTime} - {event.endTime}
-                                </Text>
-                                <Text style={styles.appointmentTitle}>
-                                  {event.title}
-                                </Text>
-                                {/* Pequeño indicador de color para la trabajadora */}
-                                <View 
-                                  style={[
-                                    styles.workerColorIndicator,
-                                    { backgroundColor: worker.color }
-                                  ]}
-                                />
-                              </TouchableOpacity>
-                            )}
+                            {/* Las citas se renderizarán en un contenedor superior */}
                           </View>
                         );
                       })}
                     </View>
                   ))}
-                </TouchableOpacity>
-              </Animated.View>
+                  
+                  {/* Contenedor absoluto para las citas */}
+                  <View style={styles.eventsContainer}>
+                    {getVisibleWorkers().map((worker, workerIndex) => {
+                      const workerEvents = dayEvents.filter(event => event.worker === worker.name);
+                      return workerEvents.map(event => (
+                        <TouchableOpacity 
+                          key={event.id}
+                          style={[
+                            styles.appointmentCard,
+                            { 
+                              left: workerIndex * getColumnWidth(),
+                              width: getColumnWidth() - 12, // Restamos la separación derecha
+                              top: getEventTopPosition(event.startTime),
+                              height: getEventHeight(event.startTime, event.endTime),
+                            }
+                          ]}
+                          onPress={() => openEventDetails(event)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.appointmentTime}>
+                            {event.startTime} - {event.endTime}
+                          </Text>
+                          <Text style={styles.appointmentTitle}>
+                            {event.title}
+                          </Text>
+                          {/* Pequeño indicador de color para la trabajadora */}
+                          <View 
+                            style={[
+                              styles.workerColorIndicator,
+                              { backgroundColor: worker.color }
+                            ]}
+                          />
+                        </TouchableOpacity>
+                      ));
+                    })}
+                  </View>
+                </View>
             </ScrollView>
           </ScrollView>
         </View>
@@ -1610,25 +1623,20 @@ const styles = StyleSheet.create({
   },
   appointmentCard: {
     position: 'absolute',
-    left: 0,
-    right: 0,
     top: 0,
     bottom: 0,
     borderRadius: 8, // Esquinas redondeadas
     padding: 12, // Ajustado para las celdas más pequeñas
-    margin: 2, // Reducido margen
+    marginTop: 2, // Solo margen superior
+    marginBottom: 2, // Solo margen inferior
     backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    elevation: 0, // Sin sombra en Android
     borderWidth: 1, // Línea más delgada
     borderStyle: 'solid', // Línea continua en lugar de punteada
     borderColor: '#d0d0d0', // Color gris suave para línea continua
     // Ocultar las líneas de la cuadrícula
     overflow: 'hidden',
-    zIndex: 10, // Para estar encima de las líneas de la cuadrícula
+    zIndex: 100, // Aumentado significativamente para estar siempre encima
   },
   appointmentTime: {
     fontSize: 11, // Revertido a tamaño original
@@ -1745,40 +1753,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-
-  // Estilos para gestos de zoom y pan
-  resetButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 40,
-    height: 40,
-    backgroundColor: '#E63946',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  resetButtonText: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
   gestureContainer: {
     flex: 1,
   },
   gestureWrapper: {
     flex: 1,
-  },
-  zoomableContent: {
-    flex: 1,
-    minWidth: '100%',
-    minHeight: '100%',
   },
   horizontalScrollContent: {
     flexGrow: 1,
@@ -1806,7 +1785,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   workerColumnFixed: {
-    width: 120,
+    width: 200, // Aumentado de 160 a 200 para coincidir con el nuevo minWidth
     alignItems: 'center',
     paddingHorizontal: 5,
     borderRightWidth: 1,
@@ -1824,11 +1803,32 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   timeSlotFixed: {
-    height: 50,
+    height: 35,
     justifyContent: 'center',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+  },
+  mainHourSlot: {
+    backgroundColor: 'transparent',
+    borderTopWidth: 2,
+    borderTopColor: '#dee2e6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  emptyHourSlot: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  mainHourLabel: {
+    fontSize: 12,
+    color: '#495057',
+    fontWeight: '600',
+  },
+  emptyHourLabel: {
+    fontSize: 12,
+    color: 'transparent',
   },
   contentScrollView: {
     flex: 1,
@@ -1836,15 +1836,31 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flex: 1,
   },
+  eventsContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 50,
+  },
   timeRowContent: {
     flexDirection: 'row',
-    height: 50,
+    height: 35,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  mainHourRow: {
+    backgroundColor: 'transparent',
+    borderTopWidth: 2,
+    borderTopColor: '#dee2e6',
+  },
+  emptyHourRow: {
+    backgroundColor: 'transparent',
+  },
   workerTimeSlotFixed: {
-    width: 120,
-    height: 50,
+    width: 200, // Aumentado de 160 a 200 para coincidir con el nuevo minWidth
+    height: 35,
     position: 'relative',
     borderRightWidth: 1,
     borderRightColor: '#f0f0f0',
