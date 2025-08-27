@@ -21,7 +21,7 @@ import {
   PanResponder,
   Modal,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Polygon } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 
@@ -100,6 +100,54 @@ const SettingsIcon = ({ color = '#FFFFFF', size = 20 }) => (
       d="M0 12.9996V14.9996C0 16.5478 1.17261 17.822 2.67809 17.9826C2.80588 18.3459 2.95062 18.7011 3.11133 19.0473C2.12484 20.226 2.18536 21.984 3.29291 23.0916L4.70712 24.5058C5.78946 25.5881 7.49305 25.6706 8.67003 24.7531C9.1044 24.9688 9.55383 25.159 10.0163 25.3218C10.1769 26.8273 11.4511 28 12.9993 28H14.9993C16.5471 28 17.8211 26.8279 17.9821 25.3228C18.4024 25.175 18.8119 25.0046 19.2091 24.8129C20.3823 25.6664 22.0344 25.564 23.0926 24.5058L24.5068 23.0916C25.565 22.0334 25.6674 20.3813 24.814 19.2081C25.0054 18.8113 25.1757 18.4023 25.3234 17.9824C26.8282 17.8211 28 16.5472 28 14.9996V12.9996C28 11.452 26.8282 10.1782 25.3234 10.0169C25.1605 9.55375 24.9701 9.10374 24.7541 8.66883C25.6708 7.49189 25.5882 5.78888 24.5061 4.70681L23.0919 3.29259C21.9846 2.18531 20.2271 2.12455 19.0485 3.1103C18.7017 2.94935 18.3459 2.80441 17.982 2.67647C17.8207 1.17177 16.5468 0 14.9993 0H12.9993C11.4514 0 10.1773 1.17231 10.0164 2.6775C9.60779 2.8213 9.20936 2.98653 8.82251 3.17181C7.64444 2.12251 5.83764 2.16276 4.70782 3.29259L3.2936 4.7068C2.16377 5.83664 2.12352 7.64345 3.17285 8.82152C2.98737 9.20877 2.82199 9.60763 2.67809 10.0167C1.17261 10.1773 0 11.4515 0 12.9996ZM15.9993 3C15.9993 2.44772 15.5516 2 14.9993 2H12.9993C12.447 2 11.9993 2.44772 11.9993 3V3.38269C11.9993 3.85823 11.6626 4.26276 11.2059 4.39542C10.4966 4.60148 9.81974 4.88401 9.18495 5.23348C8.76836 5.46282 8.24425 5.41481 7.90799 5.07855L7.53624 4.70681C7.14572 4.31628 6.51256 4.31628 6.12203 4.7068L4.70782 6.12102C4.31729 6.51154 4.31729 7.14471 4.70782 7.53523L5.07958 7.90699C5.41584 8.24325 5.46385 8.76736 5.23451 9.18395C4.88485 9.8191 4.6022 10.4963 4.39611 11.2061C4.2635 11.6629 3.85894 11.9996 3.38334 11.9996H3C2.44772 11.9996 2 12.4474 2 12.9996V14.9996C2 15.5519 2.44772 15.9996 3 15.9996H3.38334C3.85894 15.9996 4.26349 16.3364 4.39611 16.7931C4.58954 17.4594 4.85042 18.0969 5.17085 18.6979C5.39202 19.1127 5.34095 19.6293 5.00855 19.9617L4.70712 20.2632C4.3166 20.6537 4.3166 21.2868 4.70712 21.6774L6.12134 23.0916C6.51186 23.4821 7.14503 23.4821 7.53555 23.0916L7.77887 22.8483C8.11899 22.5081 8.65055 22.4633 9.06879 22.7008C9.73695 23.0804 10.4531 23.3852 11.2059 23.6039C11.6626 23.7365 11.9993 24.1411 11.9993 24.6166V25C11.9993 25.5523 12.447 26 12.9993 26H14.9993C15.5516 26 15.9993 25.5523 15.9993 25V24.6174C15.9993 24.1418 16.3361 23.7372 16.7929 23.6046C17.5032 23.3985 18.1809 23.1157 18.8164 22.7658C19.233 22.5365 19.7571 22.5845 20.0934 22.9208L20.2642 23.0916C20.6547 23.4821 21.2879 23.4821 21.6784 23.0916L23.0926 21.6774C23.4831 21.2868 23.4831 20.6537 23.0926 20.2632L22.9218 20.0924C22.5855 19.7561 22.5375 19.232 22.7669 18.8154C23.1166 18.1802 23.3992 17.503 23.6053 16.7931C23.7379 16.3364 24.1425 15.9996 24.6181 15.9996H25C25.5523 15.9996 26 15.5519 26 14.9996V12.9996C26 12.4474 25.5523 11.9996 25 11.9996H24.6181C24.1425 11.9996 23.7379 11.6629 23.6053 11.2061C23.3866 10.4529 23.0817 9.73627 22.7019 9.06773C22.4643 8.64949 22.5092 8.11793 22.8493 7.77781L23.0919 7.53523C23.4824 7.14471 23.4824 6.51154 23.0919 6.12102L21.6777 4.7068C21.2872 4.31628 20.654 4.31628 20.2635 4.7068L19.9628 5.00748C19.6304 5.33988 19.1137 5.39096 18.6989 5.16979C18.0976 4.84915 17.4596 4.58815 16.7929 4.39467C16.3361 4.2621 15.9993 3.85752 15.9993 3.38187V3Z" 
       fill={color} 
       fillRule="evenodd"
+    />
+  </Svg>
+);
+
+// Componente del ícono de papelera
+const TrashIcon = ({ color = '#FF3B30', size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path 
+      d="M6 7V18C6 19.1046 6.89543 20 8 20H16C17.1046 20 18 19.1046 18 18V7M6 7H5M6 7H8M18 7H19M18 7H16M10 11V16M14 11V16M8 7V5C8 3.89543 8.89543 3 10 3H14C15.1046 3 16 3.89543 16 5V7M8 7H16" 
+      stroke={color} 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+// Componente del ícono de editar
+const EditIcon = ({ color = '#007AFF', size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path 
+      d="M20,16v4a2,2,0,0,1-2,2H4a2,2,0,0,1-2-2V6A2,2,0,0,1,4,4H8" 
+      fill="none" 
+      stroke={color} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      strokeWidth="2"
+    />
+    <Polygon 
+      fill="none" 
+      points="12.5 15.8 22 6.2 17.8 2 8.3 11.5 8 16 12.5 15.8" 
+      stroke={color} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      strokeWidth="2"
+    />
+  </Svg>
+);
+
+// Componente del ícono de regresar
+const BackIcon = ({ color = '#007AFF', size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path 
+      d="M19 12H5M12 19l-7-7 7-7" 
+      stroke={color} 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
     />
   </Svg>
 );
@@ -1001,10 +1049,10 @@ const CalendarScreen = (): React.JSX.Element => {
             <View style={styles.filterHeader}>
               <TouchableOpacity 
                 onPress={() => setShowFilterModal(false)}
-                style={styles.backButton}
+                style={styles.filterBackButton}
               >
                 <FilterIcon color="#007AFF" size={18} />
-                <Text style={styles.backButtonText}>Filtrar</Text>
+                <Text style={styles.filterBackButtonText}>Filtrar</Text>
               </TouchableOpacity>
             </View>
 
@@ -1081,132 +1129,116 @@ const CalendarScreen = (): React.JSX.Element => {
       {/* Modal de Detalles de Cita */}
       <Modal
         animationType="slide"
-        transparent={true}
+        transparent={false}
         visible={showEventModal}
         onRequestClose={closeEventDetails}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.eventModal}>
-            <View style={styles.eventModalHeader}>
-              <TouchableOpacity 
-                onPress={closeEventDetails}
-                style={styles.closeButton}
-              >
-                <Text style={styles.closeButtonText}>×</Text>
-              </TouchableOpacity>
-              <Text style={styles.eventModalTitle}>Detalles de la Cita</Text>
-              <View style={{ width: 40 }} />
-            </View>
+        <View style={styles.appointmentDetailContainer}>
+          {/* Header */}
+          <View style={styles.appointmentDetailHeader}>
+            <TouchableOpacity 
+              onPress={closeEventDetails}
+              style={styles.backButton}
+            >
+              <BackIcon color="#007AFF" size={24} />
+            </TouchableOpacity>
+            <Text style={styles.appointmentDetailTitle}>
+              Cita agendada #{selectedEvent?.id || ''}
+            </Text>
+            <TouchableOpacity style={styles.editIconButton}>
+              <EditIcon color="#007AFF" size={24} />
+            </TouchableOpacity>
+          </View>
 
-            <View style={styles.eventModalContent}>
-              {selectedEvent ? (
-                <>
-                  {/* Información del Cliente */}
-                  <View style={styles.eventDetailRow}>
-                    <Text style={styles.eventDetailLabel}>Cliente:</Text>
-                    <Text style={styles.eventDetailValue}>
-                      {String(selectedEvent?.cliente?.nombre || selectedEvent?.title || 'Sin cliente')}
-                    </Text>
-                  </View>
-
-                  {selectedEvent?.cliente?.telefono && (
-                    <View style={styles.eventDetailRow}>
-                      <Text style={styles.eventDetailLabel}>Teléfono:</Text>
-                      <Text style={styles.eventDetailValue}>
-                        {String(selectedEvent.cliente.telefono)}
+          <View style={styles.appointmentDetailContent}>
+            {selectedEvent ? (
+              <>
+                {/* Horario y Fecha */}
+                <View style={styles.appointmentDetailCard}>
+                  <View style={styles.appointmentDetailRow}>
+                    <View style={styles.appointmentDetailColumn}>
+                      <Text style={styles.appointmentDetailLabel}>Horario</Text>
+                      <Text style={styles.appointmentDetailValue}>
+                        {selectedEvent.startTime} - {selectedEvent.endTime}
                       </Text>
                     </View>
-                  )}
-
-                  {/* Fecha y Horario General */}
-                  <View style={styles.eventDetailRow}>
-                    <Text style={styles.eventDetailLabel}>Fecha:</Text>
-                    <Text style={styles.eventDetailValue}>
-                      {String(formatEventDate(selectedEvent?.date || '2025-08-21'))}
-                    </Text>
+                    <View style={styles.appointmentDetailColumn}>
+                      <Text style={styles.appointmentDetailLabel}>Fecha</Text>
+                      <Text style={styles.appointmentDetailValue}>Hoy</Text>
+                    </View>
                   </View>
-
-                  <View style={styles.eventDetailRow}>
-                    <Text style={styles.eventDetailLabel}>Horario Total:</Text>
-                    <Text style={styles.eventDetailValue}>
-                      {String(selectedEvent?.startTime || '00:00')} - {String(selectedEvent?.endTime || '01:00')}
-                    </Text>
-                  </View>
-
-                  {/* Estado de la Cita */}
-                  <View style={styles.eventDetailRow}>
-                    <Text style={styles.eventDetailLabel}>Estado:</Text>
-                    <Text style={[styles.eventDetailValue, {
-                      color: selectedEvent?.estado === 'confirmada' ? '#2ecc71' : 
-                             selectedEvent?.estado === 'pendiente' ? '#f39c12' : '#666'
-                    }]}>
-                      {String(selectedEvent?.estado || 'pendiente').toUpperCase()}
-                    </Text>
-                  </View>
-
-                  {/* Detalles de Servicios */}
-                  <View style={styles.serviceDetailsSection}>
-                    <Text style={styles.serviceDetailsTitle}>Servicios:</Text>
-                    {selectedEvent?.detalles?.map((detalle, index) => (
-                      <View key={detalle.id || index} style={styles.serviceDetailCard}>
-                        <View style={styles.serviceDetailHeader}>
-                          <Text style={styles.serviceDetailName}>
-                            {String(detalle.servicio?.nombre || 'Servicio')}
-                          </Text>
-                          <Text style={styles.serviceDetailPrice}>
-                            ${String(detalle.precio || 0)}
-                          </Text>
-                        </View>
-                        <View style={styles.serviceDetailInfo}>
-                          <Text style={styles.serviceDetailText}>
-                            Empleada: {String(detalle.empleado?.name || 'Sin asignar')}
-                          </Text>
-                          <Text style={styles.serviceDetailText}>
-                            Inicio: {String(detalle.inicioServicio || '00:00')}
-                          </Text>
-                          <Text style={styles.serviceDetailText}>
-                            Duración: {String(detalle.duracionMinutos || 0)} min
-                          </Text>
-                        </View>
-                      </View>
-                    )) || (
-                      <Text style={styles.serviceDetailText}>No hay servicios registrados</Text>
-                    )}
-                  </View>
-
-                  {/* Total */}
-                  <View style={styles.totalSection}>
-                    <Text style={styles.totalLabel}>Total a pagar:</Text>
-                    <Text style={styles.totalAmount}>
-                      ${String(selectedEvent?.total || 0)}
-                    </Text>
-                  </View>
-                </>
-              ) : (
-                <View>
-                  <Text style={styles.eventDetailValue}>Cargando detalles...</Text>
                 </View>
-              )}
-            </View>
 
-            <View style={styles.eventModalActions}>
-              <TouchableOpacity 
-                style={styles.editButton}
-                onPress={closeEventDetails}
-              >
-                <Text style={styles.editButtonText}>Editar</Text>
+                {/* Cliente */}
+                <View style={styles.appointmentDetailCard}>
+                  <Text style={styles.appointmentDetailLabel}>Cliente</Text>
+                  <Text style={styles.appointmentDetailClientName}>
+                    {selectedEvent.cliente?.nombre || selectedEvent.title || 'Sin cliente'}
+                  </Text>
+                </View>
+
+                {/* Detalles de Servicios */}
+                <View style={styles.appointmentDetailCard}>
+                  <Text style={styles.appointmentDetailSectionTitle}>Detalles</Text>
+                  {selectedEvent.detalles?.map((detalle, index) => (
+                    <View key={detalle.id || index} style={styles.serviceDetailItem}>
+                      <View style={styles.serviceDetailBorder} />
+                      <View style={styles.serviceDetailContent}>
+                        <Text style={styles.serviceDetailTitle}>
+                          {detalle.servicio?.nombre || 'Servicio'}
+                        </Text>
+                        <Text style={styles.serviceDetailTime}>
+                          {detalle.inicioServicio} - {(() => {
+                            const [hour, min] = detalle.inicioServicio.split(':').map(Number);
+                            const endMinutes = hour * 60 + min + (detalle.duracionMinutos || 0);
+                            const endHour = Math.floor(endMinutes / 60);
+                            const endMin = endMinutes % 60;
+                            return `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
+                          })()}
+                        </Text>
+                        <Text style={styles.serviceDetailEmployee}>
+                          Atiende {detalle.empleado?.name || 'Sin asignar'}
+                        </Text>
+                      </View>
+                      <Text style={styles.serviceDetailPrice}>
+                        ${detalle.precio || 0}
+                      </Text>
+                    </View>
+                  )) || (
+                    <Text style={styles.noServicesText}>No hay servicios registrados</Text>
+                  )}
+                </View>
+              </>
+            ) : (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Cargando detalles...</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Footer */}
+          <View style={styles.appointmentDetailFooter}>
+            <View style={styles.totalSection}>
+              <View style={styles.totalColumn}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalAmount}>
+                  ${selectedEvent?.total || 0}.00
+                </Text>
+              </View>
+              <View style={styles.remainingColumn}>
+                <Text style={styles.remainingLabel}>Restante</Text>
+                <Text style={styles.remainingAmount}>
+                  ${selectedEvent?.total || 0}.00
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.actionButtons}>
+              <TouchableOpacity style={styles.deleteIconButton}>
+                <TrashIcon color="#FF3B30" size={24} />
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.chargeButton}
-                onPress={closeEventDetails}
-              >
-                <Text style={styles.chargeButtonText}>Cobro</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.deleteButton}
-                onPress={closeEventDetails}
-              >
-                <Text style={styles.deleteButtonText}>Eliminar</Text>
+              <TouchableOpacity style={styles.chargeButtonNew}>
+                <Text style={styles.chargeButtonNewText}>Cobrar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1944,12 +1976,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  backButton: {
+  filterBackButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  backButtonText: {
+  filterBackButtonText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#007AFF',
@@ -2013,6 +2045,204 @@ const styles = StyleSheet.create({
   },
 
   // Estilos para el modal de detalles de cita
+  appointmentDetailContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  appointmentDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  appointmentDetailTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  editIconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  appointmentDetailContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  appointmentDetailCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  appointmentDetailRow: {
+    flexDirection: 'row',
+  },
+  appointmentDetailColumn: {
+    flex: 1,
+  },
+  appointmentDetailLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  appointmentDetailValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+  },
+  appointmentDetailClientName: {
+    fontSize: 18,
+    color: '#333',
+    fontWeight: '600',
+  },
+  appointmentDetailSectionTitle: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  serviceDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  serviceDetailBorder: {
+    width: 4,
+    backgroundColor: '#007AFF',
+    marginRight: 12,
+    alignSelf: 'stretch',
+    borderRadius: 2,
+  },
+  serviceDetailContent: {
+    flex: 1,
+  },
+  serviceDetailTitle: {
+    fontSize: 20,
+    color: '#333',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  serviceDetailTime: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  serviceDetailEmployee: {
+    fontSize: 14,
+    color: '#666',
+  },
+  serviceDetailPrice: {
+    fontSize: 16,
+    color: '#27ae60',
+    fontWeight: '600',
+  },
+  noServicesText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  appointmentDetailFooter: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  totalSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  totalColumn: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  remainingColumn: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  totalLabel: {
+    fontSize: 16,
+    color: '#666666',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  totalAmount: {
+    fontSize: 18,
+    color: '#333',
+    fontWeight: '700',
+  },
+  remainingLabel: {
+    fontSize: 16,
+    color: '#666666',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  remainingAmount: {
+    fontSize: 18,
+    color: '#333',
+    fontWeight: '700',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  deleteIconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  chargeButtonNew: {
+    flex: 1,
+    backgroundColor: '#333',
+    paddingVertical: 16,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chargeButtonNewText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+
+  // Estilos obsoletos mantenidos para compatibilidad
   eventModal: {
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
@@ -2153,38 +2383,12 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     flex: 1,
   },
-  serviceDetailPrice: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#27ae60',
-  },
   serviceDetailInfo: {
     gap: 4,
   },
   serviceDetailText: {
     fontSize: 13,
     color: '#666666',
-  },
-  
-  // Estilos para el total
-  totalSection: {
-    marginTop: 20,
-    paddingTop: 15,
-    borderTopWidth: 2,
-    borderTopColor: '#007AFF',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-  },
-  totalAmount: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#27ae60',
   },
 
   // Botón de cobro
