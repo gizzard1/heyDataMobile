@@ -24,6 +24,7 @@ import {
 import Svg, { Path, Polygon } from 'react-native-svg';
 import AppointmentDetailScreen from './AppointmentDetailScreen';
 import PaymentScreen from './PaymentScreen';
+import ResizableAppointmentCard from '../components/ResizableAppointmentCard';
 
 const { width, height } = Dimensions.get('window');
 
@@ -218,6 +219,10 @@ const CalendarScreen = (): React.JSX.Element => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showAppointmentDetail, setShowAppointmentDetail] = useState(false);
   const [showPaymentScreen, setShowPaymentScreen] = useState(false);
+  
+  // Estado para el modo resize de tarjetas
+  const [anyCardInResizeMode, setAnyCardInResizeMode] = useState(false);
+  const resizingCardRef = useRef<string | null>(null);
 
 
 
@@ -308,6 +313,47 @@ const CalendarScreen = (): React.JSX.Element => {
   const closeEventDetails = () => {
     setShowEventModal(false);
     setSelectedEvent(null);
+  };
+
+  // Función para manejar el redimensionamiento de citas
+  const handleAppointmentResize = (eventId: string, newStartTime: string, newEndTime: string) => {
+    console.log('Resizing appointment:', { eventId, newStartTime, newEndTime });
+    
+    // Actualizar el evento en el estado
+    setEvents(prevEvents => 
+      prevEvents.map(event => {
+        if (event.id === eventId) {
+          return {
+            ...event,
+            startTime: newStartTime,
+            endTime: newEndTime,
+          };
+        }
+        return event;
+      })
+    );
+    
+    // Aquí podrías agregar una llamada a la API para guardar los cambios
+    // updateAppointmentTime(eventId, newStartTime, newEndTime);
+  };
+
+  // Función para manejar el cambio de modo resize
+  const handleResizeModeChange = (eventId: string, isResizing: boolean) => {
+    if (isResizing) {
+      setAnyCardInResizeMode(true);
+      resizingCardRef.current = eventId;
+    } else {
+      setAnyCardInResizeMode(false);
+      resizingCardRef.current = null;
+    }
+  };
+
+  // Función para cancelar el modo resize de todas las tarjetas
+  const cancelAllResizeModes = () => {
+    setAnyCardInResizeMode(false);
+    resizingCardRef.current = null;
+    // Aquí podrías forzar que todas las tarjetas salgan del modo resize
+    console.log('🚫 Cancelled all resize modes');
   };
 
   // Función para calcular la duración
@@ -856,7 +902,15 @@ const CalendarScreen = (): React.JSX.Element => {
                 }, 50);
               }}
             >
-              <View style={styles.calendarGrid}>
+              <TouchableOpacity 
+                style={styles.calendarGrid}
+                activeOpacity={1}
+                onPress={() => {
+                  if (anyCardInResizeMode) {
+                    cancelAllResizeModes();
+                  }
+                }}
+              >
                   {timeSlots.map((timeSlot, index) => (
                     <View key={timeSlot.time} style={[
                       styles.timeRowContent,
@@ -877,38 +931,28 @@ const CalendarScreen = (): React.JSX.Element => {
                     {getVisibleWorkers().map((worker, workerIndex) => {
                       const workerEvents = dayEvents.filter(event => event.worker === worker.name);
                       return workerEvents.map(event => (
-                        <TouchableOpacity 
+                        <ResizableAppointmentCard
                           key={event.id}
-                          style={[
-                            styles.appointmentCard,
-                            { 
-                              left: workerIndex * getColumnWidth(),
-                              width: getColumnWidth() - 12, // Restamos la separación derecha
-                              top: getEventTopPosition(event.startTime),
-                              height: getEventHeight(event.startTime, event.endTime),
-                            }
-                          ]}
+                          event={event}
+                          cardStyle={{
+                            left: workerIndex * getColumnWidth(),
+                            width: getColumnWidth() - 12, // Restamos la separación derecha
+                            top: getEventTopPosition(event.startTime),
+                            height: getEventHeight(event.startTime, event.endTime),
+                          }}
                           onPress={() => openEventDetails(event)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.appointmentTime}>
-                            {event.startTime} - {event.endTime}
-                          </Text>
-                          <Text style={styles.appointmentTitle}>
-                            {event.cliente.nombre}
-                          </Text>
-                          <View style={styles.servicesList}>
-                            {event.detalles.map((detalle, index) => (
-                              <Text key={index} style={styles.serviceItem}>
-                                • {detalle.servicio.nombre}
-                              </Text>
-                            ))}
-                          </View>
-                        </TouchableOpacity>
+                          onResize={(newStartTime, newEndTime) => 
+                            handleAppointmentResize(event.id, newStartTime, newEndTime)
+                          }
+                          onResizeModeChange={(isResizing) => 
+                            handleResizeModeChange(event.id, isResizing)
+                          }
+                          timeSlotHeight={60} // Altura de cada slot de tiempo
+                        />
                       ));
                     })}
                   </View>
-                </View>
+                </TouchableOpacity>
             </ScrollView>
           </ScrollView>
         </View>
