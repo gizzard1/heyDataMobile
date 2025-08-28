@@ -348,6 +348,91 @@ const CalendarScreen = (): React.JSX.Element => {
     }
   };
 
+  // Función para convertir posición Y a hora
+  const timePositionToTime = (position: number): string => {
+    const totalMinutes = (position / 60) * 60; // 60px por hora, 60 minutos por hora
+    const hours = Math.floor(totalMinutes / 60) + 8; // Comenzamos a las 8:00
+    const minutes = Math.round((totalMinutes % 60) / 15) * 15; // Redondear a múltiplos de 15 minutos
+    
+    const adjustedHours = hours + Math.floor(minutes / 60);
+    const adjustedMinutes = minutes % 60;
+    
+    return `${adjustedHours.toString().padStart(2, '0')}:${adjustedMinutes.toString().padStart(2, '0')}`;
+  };
+
+  // Función para obtener la duración de un evento en minutos
+  const getEventDuration = (startTime: string, endTime: string): number => {
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
+    const [endHours, endMinutes] = endTime.split(':').map(Number);
+    
+    const startTotalMinutes = startHours * 60 + startMinutes;
+    const endTotalMinutes = endHours * 60 + endMinutes;
+    
+    return endTotalMinutes - startTotalMinutes;
+  };
+
+  // Función para agregar minutos a una hora
+  const addMinutesToTime = (time: string, minutes: number): string => {
+    const [hours, mins] = time.split(':').map(Number);
+    const totalMinutes = hours * 60 + mins + minutes;
+    
+    const newHours = Math.floor(totalMinutes / 60);
+    const newMinutes = totalMinutes % 60;
+    
+    return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+  };
+
+  // Función para manejar el movimiento de citas entre trabajadoras y cambio de hora
+  const handleAppointmentMove = (eventId: string, newWorkerIndex: number, newTimePosition?: number) => {
+    console.log('Moving appointment:', { eventId, newWorkerIndex, newTimePosition });
+    
+    const visibleWorkers = getVisibleWorkers();
+    if (newWorkerIndex >= 0 && newWorkerIndex < visibleWorkers.length) {
+      const newWorker = visibleWorkers[newWorkerIndex];
+      
+      // Actualizar el evento en el estado
+      setEvents(prevEvents => 
+        prevEvents.map(event => {
+          if (event.id === eventId) {
+            let updatedEvent = {
+              ...event,
+              worker: newWorker.name,
+              // También actualizar en detalles si es necesario
+              detalles: event.detalles.map(detalle => ({
+                ...detalle,
+                empleado: newWorker,
+                empleadoId: newWorker.id,
+              }))
+            };
+
+            // Si hay nueva posición de tiempo, calcular la nueva hora
+            if (newTimePosition !== undefined) {
+              const newStartTime = timePositionToTime(newTimePosition);
+              const originalDuration = getEventDuration(event.startTime, event.endTime);
+              const newEndTime = addMinutesToTime(newStartTime, originalDuration);
+              
+              updatedEvent = {
+                ...updatedEvent,
+                startTime: newStartTime,
+                endTime: newEndTime,
+              };
+              
+              console.log(`📱 Appointment ${eventId} moved to ${newWorker.name} at ${newStartTime}-${newEndTime}`);
+            } else {
+              console.log(`📱 Appointment ${eventId} moved to ${newWorker.name}`);
+            }
+
+            return updatedEvent;
+          }
+          return event;
+        })
+      );
+      
+      // Aquí podrías agregar una llamada a la API para guardar los cambios
+      // updateAppointmentWorker(eventId, newWorker.id);
+    }
+  };
+
   // Función para cancelar el modo resize de todas las tarjetas
   const cancelAllResizeModes = () => {
     setAnyCardInResizeMode(false);
@@ -944,10 +1029,16 @@ const CalendarScreen = (): React.JSX.Element => {
                           onResize={(newStartTime, newEndTime) => 
                             handleAppointmentResize(event.id, newStartTime, newEndTime)
                           }
+                          onMove={(newWorkerIndex, newTimePosition) => 
+                            handleAppointmentMove(event.id, newWorkerIndex, newTimePosition)
+                          }
                           onResizeModeChange={(isResizing) => 
                             handleResizeModeChange(event.id, isResizing)
                           }
                           timeSlotHeight={60} // Altura de cada slot de tiempo
+                          columnWidth={getColumnWidth()}
+                          totalColumns={getVisibleWorkers().length}
+                          containerHeight={timeSlots.length * 60} // Altura total del contenedor
                         />
                       ));
                     })}
