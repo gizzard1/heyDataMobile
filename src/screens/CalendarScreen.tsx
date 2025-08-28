@@ -22,6 +22,8 @@ import {
   Easing,
 } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
+import AppointmentDetailScreen from './AppointmentDetailScreen';
+import PaymentScreen from './PaymentScreen';
 
 const { width, height } = Dimensions.get('window');
 
@@ -214,6 +216,8 @@ const CalendarScreen = (): React.JSX.Element => {
   // Estados para detalles de cita
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [showAppointmentDetail, setShowAppointmentDetail] = useState(false);
+  const [showPaymentScreen, setShowPaymentScreen] = useState(false);
 
 
 
@@ -1205,7 +1209,16 @@ const CalendarScreen = (): React.JSX.Element => {
             <Text style={styles.appointmentDetailTitle}>
               Cita agendada #{selectedEvent?.id || ''}
             </Text>
-            <TouchableOpacity style={styles.editIconButton}>
+            <TouchableOpacity 
+              style={styles.editIconButton}
+              onPress={() => {
+                console.log('🔧 Botón de editar presionado');
+                console.log('📋 selectedEvent:', selectedEvent);
+                setShowEventModal(false);
+                setShowAppointmentDetail(true);
+                console.log('✅ showAppointmentDetail establecido a true');
+              }}
+            >
               <EditIcon color="#007AFF" size={24} />
             </TouchableOpacity>
           </View>
@@ -1297,12 +1310,66 @@ const CalendarScreen = (): React.JSX.Element => {
               <TouchableOpacity style={styles.deleteIconButton}>
                 <TrashIcon color="#FF3B30" size={24} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.chargeButtonNew}>
+              <TouchableOpacity 
+                style={styles.chargeButtonNew}
+                onPress={() => {
+                  setShowEventModal(false);
+                  setShowPaymentScreen(true);
+                }}
+              >
                 <Text style={styles.chargeButtonNewText}>Cobrar</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Pantalla de Detalles de Cita */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={showAppointmentDetail}
+        onRequestClose={() => setShowAppointmentDetail(false)}
+      >
+        {selectedEvent && (
+          <AppointmentDetailScreen
+            appointment={selectedEvent}
+            onGoBack={() => setShowAppointmentDetail(false)}
+            onSave={(updatedAppointment) => {
+              // Aquí puedes actualizar el evento en el estado
+              setEvents(prevEvents => 
+                prevEvents.map(event => 
+                  event.id === updatedAppointment.id ? updatedAppointment : event
+                )
+              );
+              setShowAppointmentDetail(false);
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Pantalla de Pagos */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={showPaymentScreen}
+        onRequestClose={() => setShowPaymentScreen(false)}
+      >
+        {selectedEvent && (
+          <PaymentScreen
+            appointment={selectedEvent}
+            onGoBack={() => setShowPaymentScreen(false)}
+            onEditAppointment={() => {
+              setShowPaymentScreen(false);
+              setShowAppointmentDetail(true);
+            }}
+            onPaymentComplete={(paymentData) => {
+              console.log('Pago completado:', paymentData);
+              // Aquí puedes agregar lógica para procesar el pago
+              setShowPaymentScreen(false);
+            }}
+          />
+        )}
       </Modal>
 
       <View style={[
