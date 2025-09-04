@@ -224,8 +224,6 @@ const CalendarScreen = (): React.JSX.Element => {
   const [anyCardInResizeMode, setAnyCardInResizeMode] = useState(false);
   const resizingCardRef = useRef<string | null>(null);
 
-
-
   // Referencias para sincronizar scroll (estilo Excel)
   const headerScrollRef = useRef<ScrollView>(null);
   const timeScrollRef = useRef<ScrollView>(null);
@@ -1256,18 +1254,6 @@ const CalendarScreen = (): React.JSX.Element => {
             </View>
 
             <View style={styles.filterContent}>
-              {/* Solo yo */}
-              <View style={styles.filterOption}>
-                <TouchableOpacity 
-                  style={styles.checkbox}
-                  onPress={() => setOnlyMyTasks(!onlyMyTasks)}
-                >
-                  <Text style={styles.checkboxIcon}>
-                    {onlyMyTasks ? '☑' : '☐'}
-                  </Text>
-                </TouchableOpacity>
-                <Text style={styles.filterOptionText}>Sólo yo</Text>
-              </View>
 
               {/* Todos los empleados */}
               <View style={styles.filterOption}>
@@ -1285,7 +1271,18 @@ const CalendarScreen = (): React.JSX.Element => {
                     {selectedWorkers.length === workers.length ? '☑' : '☐'}
                   </Text>
                 </TouchableOpacity>
-                <Text style={styles.filterOptionText}>Todos los empleados</Text>
+                
+                <TouchableOpacity 
+                onPress={() => {
+                    if (selectedWorkers.length === workers.length) {
+                      clearAllWorkers();
+                    } else {
+                      setAllWorkers();
+                    }
+                  }}
+                  >
+                  <Text style={styles.filterOptionText}>Todos los empleados</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Lista de trabajadoras */}
@@ -1299,21 +1296,16 @@ const CalendarScreen = (): React.JSX.Element => {
                       {selectedWorkers.includes(worker.id) ? '☑' : '☐'}
                     </Text>
                   </TouchableOpacity>
-                  <Text style={styles.filterOptionText}>{worker.name}</Text>
+                  <TouchableOpacity 
+                  onPress={() => handleWorkerToggle(worker.id)}
+                    >
+                    <Text style={styles.filterOptionText}>{worker.name}</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
             </View>
 
             <View style={styles.filterButtons}>
-              <TouchableOpacity 
-                style={styles.presetButton}
-                onPress={() => {
-                  setAllWorkers();
-                  setOnlyMyTasks(false);
-                }}
-              >
-                <Text style={styles.presetButtonText}>Predeterminado</Text>
-              </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.applyButton}
                 onPress={applyFilters}
