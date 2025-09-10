@@ -24,6 +24,9 @@ import {
 import Svg, { Path, Polygon } from 'react-native-svg';
 import AppointmentDetailScreen from './AppointmentDetailScreen';
 import PaymentScreen from './PaymentScreen';
+import ClientsScreen from './ClientsScreen';
+import SettingsScreen from './SettingsScreen';
+import NotificationsScreen from './NotificationsScreen';
 import ResizableAppointmentCard from '../components/ResizableAppointmentCard';
 
 const { width, height } = Dimensions.get('window');
@@ -219,6 +222,10 @@ const CalendarScreen = (): React.JSX.Element => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showAppointmentDetail, setShowAppointmentDetail] = useState(false);
   const [showPaymentScreen, setShowPaymentScreen] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showClientsScreen, setShowClientsScreen] = useState(false);
+  const [showSettingsScreen, setShowSettingsScreen] = useState(false);
+  const [showNotificationsScreen, setShowNotificationsScreen] = useState(false);
   
   // Estado para el modo resize de tarjetas
   const [anyCardInResizeMode, setAnyCardInResizeMode] = useState(false);
@@ -311,6 +318,75 @@ const CalendarScreen = (): React.JSX.Element => {
   const closeEventDetails = () => {
     setShowEventModal(false);
     setSelectedEvent(null);
+  };
+
+  // Funciones para eliminar cita
+  const handleDeleteAppointment = () => {
+    setShowDeleteConfirmModal(true);
+  };
+
+  const confirmDeleteAppointment = () => {
+    if (selectedEvent) {
+      // Eliminar la cita del estado
+      setEvents(prevEvents => prevEvents.filter(event => event.id !== selectedEvent.id));
+      
+      // Cerrar todos los modales
+      setShowDeleteConfirmModal(false);
+      setShowEventModal(false);
+      setSelectedEvent(null);
+      
+      console.log('🗑️ Cita eliminada:', selectedEvent.id);
+    }
+  };
+
+  const cancelDeleteAppointment = () => {
+    setShowDeleteConfirmModal(false);
+  };
+
+  // Funciones para pantalla de clientes
+  const handleClientsPress = () => {
+    console.log('🧑‍🤝‍🧑 Abriendo pantalla de clientes');
+    setShowClientsScreen(true);
+  };
+
+  const handleClientsBack = () => {
+    console.log('🔙 Cerrando pantalla de clientes');
+    setShowClientsScreen(false);
+  };
+
+  const handleClientSelect = (cliente: any) => {
+    console.log('👤 Cliente seleccionado:', cliente);
+    // Aquí puedes agregar lógica para manejar la selección del cliente
+    setShowClientsScreen(false);
+  };
+
+  // Funciones para pantalla de configuración
+  const handleSettingsPress = () => {
+    console.log('⚙️ Abriendo pantalla de configuración');
+    setShowSettingsScreen(true);
+  };
+
+  const handleSettingsBack = () => {
+    console.log('🔙 Cerrando pantalla de configuración');
+    setShowSettingsScreen(false);
+  };
+
+  // Funciones para pantalla de notificaciones
+  const handleNotificationsPress = () => {
+    console.log('🔔 Abriendo pantalla de notificaciones');
+    setShowNotificationsScreen(true);
+  };
+
+  const handleNotificationsBack = () => {
+    console.log('🔙 Cerrando pantalla de notificaciones');
+    setShowNotificationsScreen(false);
+  };
+
+  const handleNotificationPress = (notification: any) => {
+    console.log('📱 Notificación seleccionada:', notification);
+    // Aquí puedes agregar lógica para manejar la notificación específica
+    // Por ejemplo, navegar a la cita relacionada
+    setShowNotificationsScreen(false);
   };
 
   // Función para manejar el redimensionamiento de citas
@@ -1434,7 +1510,10 @@ const CalendarScreen = (): React.JSX.Element => {
             </View>
             
             <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.deleteIconButton}>
+              <TouchableOpacity 
+                style={styles.deleteIconButton}
+                onPress={handleDeleteAppointment}
+              >
                 <TrashIcon color="#FF3B30" size={24} />
               </TouchableOpacity>
               <TouchableOpacity 
@@ -1499,6 +1578,81 @@ const CalendarScreen = (): React.JSX.Element => {
         )}
       </Modal>
 
+      {/* Modal de Confirmación de Eliminación */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showDeleteConfirmModal}
+        onRequestClose={cancelDeleteAppointment}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteConfirmModal}>
+            <View style={styles.deleteModalIcon}>
+              <Text style={styles.deleteModalIconText}>!</Text>
+            </View>
+            
+            <Text style={styles.deleteModalTitle}>¿Desea continuar?</Text>
+            <Text style={styles.deleteModalMessage}>
+              Esta cita será eliminada permanentemente
+            </Text>
+            
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity 
+                style={styles.deleteModalButtonContinue}
+                onPress={confirmDeleteAppointment}
+              >
+                <Text style={styles.deleteModalButtonContinueText}>Continuar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.deleteModalButtonCancel}
+                onPress={cancelDeleteAppointment}
+              >
+                <Text style={styles.deleteModalButtonCancelText}>Atrás</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Pantalla de Clientes */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={showClientsScreen}
+        onRequestClose={handleClientsBack}
+      >
+        <ClientsScreen
+          onGoBack={handleClientsBack}
+          onClientSelect={handleClientSelect}
+        />
+      </Modal>
+
+      {/* Pantalla de Configuración */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={showSettingsScreen}
+        onRequestClose={handleSettingsBack}
+      >
+        <SettingsScreen
+          onGoBack={handleSettingsBack}
+        />
+      </Modal>
+
+      {/* Pantalla de Notificaciones */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={showNotificationsScreen}
+        onRequestClose={handleNotificationsBack}
+      >
+        <NotificationsScreen
+          onGoBack={handleNotificationsBack}
+          onNotificationPress={handleNotificationPress}
+        />
+      </Modal>
+
       <View style={[
         styles.bottomNavigation,
         Platform.OS === 'web' && { position: 'fixed' as any }
@@ -1515,7 +1669,17 @@ const CalendarScreen = (): React.JSX.Element => {
             <TouchableOpacity
               key={index}
               style={[styles.navItem, item.active && styles.activeNavItem]}
-              onPress={() => setActiveTab(item.label)}
+              onPress={() => {
+                if (item.label === 'Clientes') {
+                  handleClientsPress();
+                } else if (item.label === 'Config') {
+                  handleSettingsPress();
+                } else if (item.label === 'Alertas') {
+                  handleNotificationsPress();
+                } else {
+                  setActiveTab(item.label);
+                }
+              }}
             >
               <IconComponent 
                 color={item.active ? '#ECF0F1' : '#BDC3C7'} 
@@ -2662,6 +2826,87 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#ffffff',
     fontWeight: '600',
+  },
+  // Estilos para modal de eliminación
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteConfirmModal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  deleteModalIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FF9500',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteModalIconText: {
+    fontSize: 28,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  deleteModalMessage: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  deleteModalButtons: {
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalButtonContinue: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginBottom: 8,
+  },
+  deleteModalButtonContinueText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  deleteModalButtonCancel: {
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  deleteModalButtonCancelText: {
+    fontSize: 16,
+    color: '#333333',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

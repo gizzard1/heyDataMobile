@@ -17,6 +17,7 @@ import {
   Dimensions,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import AddPaymentMethodScreen from './AddPaymentMethodScreen';
 
 const { width, height } = Dimensions.get('window');
 
@@ -104,7 +105,29 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   console.log('💰 PaymentScreen renderizado', { appointment });
 
   const [totalPagado, setTotalPagado] = useState(0);
+  const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
   const restante = appointment.total - totalPagado;
+
+  const handleOpenAddPaymentMethod = () => {
+    console.log('🔥 Abriendo pantalla de agregar método de pago');
+    setShowAddPaymentMethod(true);
+  };
+
+  const handleCloseAddPaymentMethod = () => {
+    console.log('🔥 Cerrando pantalla de agregar método de pago');
+    setShowAddPaymentMethod(false);
+  };
+
+  const handleSavePaymentMethod = (paymentData: any) => {
+    console.log('💰 Guardando método de pago:', paymentData);
+    // Aquí podrías agregar la lógica para guardar el método de pago
+    // Por ejemplo, actualizar el total pagado
+    if (paymentData.amount) {
+      const amount = parseFloat(paymentData.amount);
+      setTotalPagado(prev => prev + amount);
+    }
+    setShowAddPaymentMethod(false);
+  };
 
   const handlePayment = () => {
     if (onPaymentComplete) {
@@ -166,7 +189,11 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
 
         {/* Botón de agregar servicio */}
         <View style={styles.addServiceContainer}>
-          <TouchableOpacity style={styles.addServiceButton}>
+          <TouchableOpacity 
+            style={styles.addServiceButton}
+            onPress={handleOpenAddPaymentMethod}
+            activeOpacity={0.8}
+          >
             <PlusIcon color="#FFFFFF" size={20} />
           </TouchableOpacity>
         </View>
@@ -194,6 +221,16 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
           <Text style={styles.editButtonText}>Guardar</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Modal para agregar método de pago */}
+      {showAddPaymentMethod && (
+        <View style={styles.modalOverlay}>
+          <AddPaymentMethodScreen
+            onSave={handleSavePaymentMethod}
+            onClose={handleCloseAddPaymentMethod}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -371,6 +408,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#FFFFFF',
+    zIndex: 1000,
   },
 });
 

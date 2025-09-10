@@ -4,4 +4,6 @@ export { default as ForgotPasswordScreen } from './ForgotPasswordScreen';
 export { default as CalendarScreen } from './CalendarScreen';
 export { default as NewCalendarScreen } from './NewCalendarScreen';
 export { default as AppointmentDetailScreen } from './AppointmentDetailScreen';
+export { default as ServiceDetailScreen } from './ServiceDetailScreen';
+export { default as AddPaymentMethodScreen } from './AddPaymentMethodScreen';
 export { default as PaymentScreen } from './PaymentScreen';
