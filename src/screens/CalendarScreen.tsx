@@ -158,6 +158,61 @@ const BackIcon = ({ color = '#007AFF', size = 20 }) => (
   </Svg>
 );
 
+// Iconos para botones flotantes del menú agregar
+const EventIcon = ({ color = '#FFFFFF', size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path 
+      d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z" 
+      stroke={color} 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+    <Path 
+      d="M15.6956 13.7407H15.7046M15.6956 16.6537H15.7046M11.9956 13.7407H12.0046M11.9956 16.6537H12.0046M8.29559 13.7407H8.30459M8.29559 16.6537H8.30459" 
+      stroke={color} 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+const ClientIcon = ({ color = '#FFFFFF', size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path 
+      d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" 
+      stroke={color} 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+    <Path 
+      d="M20.5899 22C20.5899 18.13 16.7399 15 11.9999 15C7.25991 15 3.40991 18.13 3.40991 22" 
+      stroke={color} 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+const ServiceIcon = ({ color = '#FFFFFF', size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path 
+      d="M21.5 12.0001C21.5 16.7465 17.7464 20.5001 13 20.5001C8.25362 20.5001 4.5 16.7465 4.5 12.0001C4.5 7.25374 8.25362 3.50012 13 3.50012C17.7464 3.50012 21.5 7.25374 21.5 12.0001Z" 
+      stroke={color} 
+      strokeWidth="1.5"
+    />
+    <Path 
+      d="M8 12.5H18M8 15.5H14M8 9.5H16" 
+      stroke={color} 
+      strokeWidth="1.5" 
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
 interface Cliente {
   id: string;
   nombre: string;
@@ -202,7 +257,7 @@ interface Worker {
   id: string;
   name: string;
   color: string;
-}
+};
 
 const CalendarScreen = (): React.JSX.Element => {
   const isDarkMode = useColorScheme() === 'dark';
@@ -226,6 +281,13 @@ const CalendarScreen = (): React.JSX.Element => {
   const [showClientsScreen, setShowClientsScreen] = useState(false);
   const [showSettingsScreen, setShowSettingsScreen] = useState(false);
   const [showNotificationsScreen, setShowNotificationsScreen] = useState(false);
+  
+  // Estados para botones flotantes del menú agregar
+  const [showFloatingButtons, setShowFloatingButtons] = useState(false);
+  const leftButtonAnimation = useRef(new Animated.Value(0)).current;
+  const centerButtonAnimation = useRef(new Animated.Value(0)).current;
+  const rightButtonAnimation = useRef(new Animated.Value(0)).current;
+  const buttonOpacityAnimation = useRef(new Animated.Value(0)).current;
   
   // Estado para el modo resize de tarjetas
   const [anyCardInResizeMode, setAnyCardInResizeMode] = useState(false);
@@ -387,6 +449,123 @@ const CalendarScreen = (): React.JSX.Element => {
     // Aquí puedes agregar lógica para manejar la notificación específica
     // Por ejemplo, navegar a la cita relacionada
     setShowNotificationsScreen(false);
+  };
+
+  // Funciones para botones flotantes del menú agregar
+  const handleAddPress = () => {
+    console.log('🚀 Botón Agregar presionado');
+    console.log('📊 Estado actual showFloatingButtons:', showFloatingButtons);
+    
+    // Temporalmente solo cambiamos el estado sin animaciones
+    setShowFloatingButtons(!showFloatingButtons);
+    
+    // if (showFloatingButtons) {
+    //   console.log('🔽 Ocultando botones flotantes');
+    //   hideFloatingButtons();
+    // } else {
+    //   console.log('🔼 Mostrando botones flotantes');
+    //   showFloatingButtonsAnimation();
+    // }
+  };
+
+  const showFloatingButtonsAnimation = () => {
+    console.log('✨ Iniciando animación de mostrar botones');
+    setShowFloatingButtons(true);
+    
+    // Resetear todas las animaciones a 0 (botones empiezan desde el centro)
+    leftButtonAnimation.setValue(0);
+    centerButtonAnimation.setValue(0);
+    rightButtonAnimation.setValue(0);
+    buttonOpacityAnimation.setValue(0);
+
+    // Animación secuencial en sentido horario (izquierda → centro → derecha)
+    Animated.sequence([
+      // Primero aparece el botón izquierdo y la opacidad general
+      Animated.parallel([
+        Animated.timing(leftButtonAnimation, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+        }),
+        Animated.timing(buttonOpacityAnimation, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Luego el botón del centro
+      Animated.timing(centerButtonAnimation, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+      }),
+      // Finalmente el botón derecho
+      Animated.timing(rightButtonAnimation, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+      }),
+    ]).start();
+  };
+
+  const hideFloatingButtons = () => {
+    console.log('🫥 Iniciando animación de ocultar botones');
+
+    // Animación secuencial en sentido anti-horario (derecha → centro → izquierda)
+    Animated.sequence([
+      // Primero desaparece el botón derecho
+      Animated.timing(rightButtonAnimation, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+      }),
+      // Luego el botón del centro
+      Animated.timing(centerButtonAnimation, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+      }),
+      // Finalmente el botón izquierdo y la opacidad
+      Animated.parallel([
+        Animated.timing(leftButtonAnimation, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+        }),
+        Animated.timing(buttonOpacityAnimation, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      console.log('✅ Animación completada, ocultando botones');
+      setShowFloatingButtons(false);
+    });
+  };
+
+  const handleEventPress = () => {
+    console.log('📅 Crear nueva cita');
+    setShowFloatingButtons(false);
+    // Aquí puedes agregar la lógica para crear una nueva cita
+  };
+
+  const handleClientPress = () => {
+    console.log('👤 Crear nuevo cliente');
+    setShowFloatingButtons(false);
+    // Aquí puedes agregar la lógica para crear un nuevo cliente
+  };
+
+  const handleServicePress = () => {
+    console.log('💼 Crear nuevo servicio');
+    setShowFloatingButtons(false);
+    // Aquí puedes agregar la lógica para crear un nuevo servicio
   };
 
   // Función para manejar el redimensionamiento de citas
@@ -1657,6 +1836,163 @@ const CalendarScreen = (): React.JSX.Element => {
         styles.bottomNavigation,
         Platform.OS === 'web' && { position: 'fixed' as any }
       ]}>
+        {/* BOTONES FLOTANTES CIRCULARES - DENTRO DEL CONTENEDOR DEL NAVBAR */}
+        {showFloatingButtons && (
+          <>
+            {/* Botón Verde - Cita (arriba-izquierda del botón Agregar) */}
+            <Animated.View 
+              style={{
+                position: 'absolute',
+                bottom: 70, // Justo arriba del navbar
+                right: '50%',  // Centrado horizontalmente
+                marginRight: -30, // Ajustar para centrar botón de 60px
+                width: 60,
+                height: 60,
+                backgroundColor: '#4CAF50',
+                borderRadius: 30,
+                zIndex: 99999,
+                elevation: 99999,
+                justifyContent: 'center',
+                alignItems: 'center',
+                opacity: 1,
+                transform: [
+                  { translateX: -60 }, // Se mueve hacia la izquierda
+                  { translateY: -40 }, // Se mueve hacia arriba
+                ],
+              }}
+            >
+              <TouchableOpacity 
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  backgroundColor: '#4CAF50',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 4,
+                  elevation: 15,
+                }}
+                onPress={() => {
+                  console.log('📅 Crear nueva cita');
+                  setShowFloatingButtons(false);
+                }}
+              >
+                <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>CITA</Text>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Botón Naranja - Cliente (directamente arriba del botón Agregar) */}
+            <Animated.View 
+              style={{
+                position: 'absolute',
+                bottom: 70, // Justo arriba del navbar
+                right: '50%',  // Centrado horizontalmente
+                marginRight: -30, // Ajustar para centrar botón de 60px
+                width: 60,
+                height: 60,
+                backgroundColor: '#FF9500',
+                borderRadius: 30,
+                zIndex: 99999,
+                elevation: 99999,
+                justifyContent: 'center',
+                alignItems: 'center',
+                opacity: 1,
+                transform: [
+                  { translateY: -60 }, // Se mueve hacia arriba
+                ],
+              }}
+            >
+              <TouchableOpacity 
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  backgroundColor: '#FF9500',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 4,
+                  elevation: 15,
+                }}
+                onPress={() => {
+                  console.log('👤 Crear nuevo cliente');
+                  setShowFloatingButtons(false);
+                }}
+              >
+                <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>CLIEN</Text>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Botón Púrpura - Servicio (arriba-derecha del botón Agregar) */}
+            <Animated.View 
+              style={{
+                position: 'absolute',
+                bottom: 70, // Justo arriba del navbar
+                right: '50%',  // Centrado horizontalmente
+                marginRight: -30, // Ajustar para centrar botón de 60px
+                width: 60,
+                height: 60,
+                backgroundColor: '#9C27B0',
+                borderRadius: 30,
+                zIndex: 99999,
+                elevation: 99999,
+                justifyContent: 'center',
+                alignItems: 'center',
+                opacity: 1,
+                transform: [
+                  { translateX: 60 }, // Se mueve hacia la derecha
+                  { translateY: -40 }, // Se mueve hacia arriba
+                ],
+              }}
+            >
+              <TouchableOpacity 
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  backgroundColor: '#9C27B0',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 4,
+                  elevation: 15,
+                }}
+                onPress={() => {
+                  console.log('💼 Crear nuevo servicio');
+                  setShowFloatingButtons(false);
+                }}
+              >
+                <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>SERV</Text>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Overlay semi-transparente para cerrar botones al tocar fuera */}
+            <TouchableOpacity 
+              style={{
+                position: 'absolute',
+                top: -2000,
+                left: -1000,
+                right: -1000,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                zIndex: 99998,
+              }}
+              onPress={() => {
+                console.log('❌ Cerrando botones flotantes');
+                setShowFloatingButtons(false);
+              }}
+              activeOpacity={1}
+            />
+          </>
+        )}
+
         {[
           { component: CalendarIcon, label: 'Agenda', active: true },
           { component: UsersIcon, label: 'Clientes', active: false },
@@ -1676,6 +2012,8 @@ const CalendarScreen = (): React.JSX.Element => {
                   handleSettingsPress();
                 } else if (item.label === 'Alertas') {
                   handleNotificationsPress();
+                } else if (item.label === 'Agregar') {
+                  handleAddPress();
                 } else {
                   setActiveTab(item.label);
                 }
@@ -1692,6 +2030,8 @@ const CalendarScreen = (): React.JSX.Element => {
           );
         })}
       </View>
+
+
     </View>
   );
 };
@@ -2907,6 +3247,51 @@ const styles = StyleSheet.create({
     color: '#333333',
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // Estilos para botones flotantes del menú agregar
+  floatingButtonsContainer: {
+    position: 'absolute',
+    bottom: 80, // Un poco arriba del navbar
+    right: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 120, // Altura definida para contener los botones
+    zIndex: 9999, // Z-index muy alto
+    elevation: 9999, // Para Android
+    backgroundColor: 'transparent',
+  },
+  floatingButton: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10, // Elevación alta para Android
+    zIndex: 10000, // Z-index alto individual
+  },
+  floatingButtonTouchable: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leftFloatingButton: {
+    backgroundColor: '#34C759', // Verde para citas
+  },
+  centerFloatingButton: {
+    backgroundColor: '#FF9500', // Naranja para clientes
+  },
+  rightFloatingButton: {
+    backgroundColor: '#AF52DE', // Púrpura para servicios
   },
 });
 
