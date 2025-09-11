@@ -456,16 +456,13 @@ const CalendarScreen = (): React.JSX.Element => {
     console.log('🚀 Botón Agregar presionado');
     console.log('📊 Estado actual showFloatingButtons:', showFloatingButtons);
     
-    // Temporalmente solo cambiamos el estado sin animaciones
-    setShowFloatingButtons(!showFloatingButtons);
-    
-    // if (showFloatingButtons) {
-    //   console.log('🔽 Ocultando botones flotantes');
-    //   hideFloatingButtons();
-    // } else {
-    //   console.log('🔼 Mostrando botones flotantes');
-    //   showFloatingButtonsAnimation();
-    // }
+    if (showFloatingButtons) {
+      console.log('🔽 Ocultando botones flotantes');
+      hideFloatingButtons();
+    } else {
+      console.log('🔼 Mostrando botones flotantes');
+      showFloatingButtonsAnimation();
+    }
   };
 
   const showFloatingButtonsAnimation = () => {
@@ -478,74 +475,68 @@ const CalendarScreen = (): React.JSX.Element => {
     rightButtonAnimation.setValue(0);
     buttonOpacityAnimation.setValue(0);
 
-    // Animación secuencial en sentido horario (izquierda → centro → derecha)
-    Animated.sequence([
-      // Primero aparece el botón izquierdo y la opacidad general
-      Animated.parallel([
-        Animated.timing(leftButtonAnimation, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-          easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
-        }),
-        Animated.timing(buttonOpacityAnimation, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Luego el botón del centro
+    console.log('🔄 Iniciando animación paralela...');
+
+    // Animación PARALELA - todos los botones salen AL MISMO TIEMPO
+    Animated.parallel([
+      Animated.timing(leftButtonAnimation, {
+        toValue: 1,
+        duration: 500, // Más lento para ver mejor
+        useNativeDriver: true,
+        easing: Easing.out(Easing.quad),
+      }),
       Animated.timing(centerButtonAnimation, {
         toValue: 1,
-        duration: 150,
+        duration: 500, // Más lento para ver mejor
         useNativeDriver: true,
-        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+        easing: Easing.out(Easing.quad),
       }),
-      // Finalmente el botón derecho
       Animated.timing(rightButtonAnimation, {
         toValue: 1,
-        duration: 150,
+        duration: 500, // Más lento para ver mejor
         useNativeDriver: true,
-        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+        easing: Easing.out(Easing.quad),
       }),
-    ]).start();
+      Animated.timing(buttonOpacityAnimation, {
+        toValue: 1,
+        duration: 500, // Más lento para ver mejor
+        useNativeDriver: true,
+      }),
+    ]).start((finished) => {
+      console.log('✅ Animación completada:', finished);
+    });
   };
 
   const hideFloatingButtons = () => {
     console.log('🫥 Iniciando animación de ocultar botones');
 
-    // Animación secuencial en sentido anti-horario (derecha → centro → izquierda)
-    Animated.sequence([
-      // Primero desaparece el botón derecho
-      Animated.timing(rightButtonAnimation, {
+    // Animación PARALELA - todos los botones se ocultan AL MISMO TIEMPO
+    Animated.parallel([
+      Animated.timing(leftButtonAnimation, {
         toValue: 0,
-        duration: 150,
+        duration: 400,
         useNativeDriver: true,
-        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+        easing: Easing.in(Easing.quad),
       }),
-      // Luego el botón del centro
       Animated.timing(centerButtonAnimation, {
         toValue: 0,
-        duration: 150,
+        duration: 400,
         useNativeDriver: true,
-        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+        easing: Easing.in(Easing.quad),
       }),
-      // Finalmente el botón izquierdo y la opacidad
-      Animated.parallel([
-        Animated.timing(leftButtonAnimation, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-          easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
-        }),
-        Animated.timing(buttonOpacityAnimation, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start(() => {
-      console.log('✅ Animación completada, ocultando botones');
+      Animated.timing(rightButtonAnimation, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.quad),
+      }),
+      Animated.timing(buttonOpacityAnimation, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start((finished) => {
+      console.log('✅ Animación de ocultar completada:', finished);
       setShowFloatingButtons(false);
     });
   };
@@ -1839,13 +1830,13 @@ const CalendarScreen = (): React.JSX.Element => {
         {/* BOTONES FLOTANTES CIRCULARES - DENTRO DEL CONTENEDOR DEL NAVBAR */}
         {showFloatingButtons && (
           <>
-            {/* Botón Verde - Cita (arriba-izquierda del botón Agregar) */}
+            {/* Botón Verde - Cita */}
             <Animated.View 
               style={{
                 position: 'absolute',
                 bottom: 70, // Justo arriba del navbar
-                right: '50%',  // Centrado horizontalmente
-                marginRight: -30, // Ajustar para centrar botón de 60px
+                left: '50%',  // Centrado desde la izquierda
+                marginLeft: -10, // Centrar botón de 60px
                 width: 60,
                 height: 60,
                 backgroundColor: '#4CAF50',
@@ -1854,10 +1845,26 @@ const CalendarScreen = (): React.JSX.Element => {
                 elevation: 99999,
                 justifyContent: 'center',
                 alignItems: 'center',
-                opacity: 1,
+                opacity: buttonOpacityAnimation,
                 transform: [
-                  { translateX: -60 }, // Se mueve hacia la izquierda
-                  { translateY: -40 }, // Se mueve hacia arriba
+                  { 
+                    translateX: leftButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -60], // Se mueve hacia la izquierda
+                    })
+                  },
+                  { 
+                    translateY: leftButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -40], // Se mueve hacia arriba
+                    })
+                  },
+                  {
+                    scale: leftButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 1], // Aparece con efecto de escala
+                    })
+                  }
                 ],
               }}
             >
@@ -1877,20 +1884,20 @@ const CalendarScreen = (): React.JSX.Element => {
                 }}
                 onPress={() => {
                   console.log('📅 Crear nueva cita');
-                  setShowFloatingButtons(false);
+                  hideFloatingButtons();
                 }}
               >
                 <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>CITA</Text>
               </TouchableOpacity>
             </Animated.View>
 
-            {/* Botón Naranja - Cliente (directamente arriba del botón Agregar) */}
+            {/* Botón Naranja - Cliente */}
             <Animated.View 
               style={{
                 position: 'absolute',
                 bottom: 70, // Justo arriba del navbar
-                right: '50%',  // Centrado horizontalmente
-                marginRight: -30, // Ajustar para centrar botón de 60px
+                left: '50%',  // Centrado desde la izquierda
+                marginLeft: -10, // Ajuste fino: moverlo más hacia la derecha
                 width: 60,
                 height: 60,
                 backgroundColor: '#FF9500',
@@ -1899,9 +1906,26 @@ const CalendarScreen = (): React.JSX.Element => {
                 elevation: 99999,
                 justifyContent: 'center',
                 alignItems: 'center',
-                opacity: 1,
+                opacity: buttonOpacityAnimation,
                 transform: [
-                  { translateY: -60 }, // Se mueve hacia arriba
+                  { 
+                    translateX: centerButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 0], // Sin movimiento horizontal - queda centrado
+                    })
+                  },
+                  { 
+                    translateY: centerButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -60], // Solo se mueve hacia arriba
+                    })
+                  },
+                  {
+                    scale: centerButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 1], // Aparece con efecto de escala
+                    })
+                  }
                 ],
               }}
             >
@@ -1921,20 +1945,20 @@ const CalendarScreen = (): React.JSX.Element => {
                 }}
                 onPress={() => {
                   console.log('👤 Crear nuevo cliente');
-                  setShowFloatingButtons(false);
+                  hideFloatingButtons();
                 }}
               >
                 <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>CLIEN</Text>
               </TouchableOpacity>
             </Animated.View>
 
-            {/* Botón Púrpura - Servicio (arriba-derecha del botón Agregar) */}
+            {/* Botón Púrpura - Servicio */}
             <Animated.View 
               style={{
                 position: 'absolute',
                 bottom: 70, // Justo arriba del navbar
-                right: '50%',  // Centrado horizontalmente
-                marginRight: -30, // Ajustar para centrar botón de 60px
+                left: '50%',  // Centrado desde la izquierda
+                marginLeft: -10, // Centrar botón de 60px
                 width: 60,
                 height: 60,
                 backgroundColor: '#9C27B0',
@@ -1943,10 +1967,26 @@ const CalendarScreen = (): React.JSX.Element => {
                 elevation: 99999,
                 justifyContent: 'center',
                 alignItems: 'center',
-                opacity: 1,
+                opacity: buttonOpacityAnimation,
                 transform: [
-                  { translateX: 60 }, // Se mueve hacia la derecha
-                  { translateY: -40 }, // Se mueve hacia arriba
+                  { 
+                    translateX: rightButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 60], // Se mueve hacia la derecha
+                    })
+                  },
+                  { 
+                    translateY: rightButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -40], // Se mueve hacia arriba
+                    })
+                  },
+                  {
+                    scale: rightButtonAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 1], // Aparece con efecto de escala
+                    })
+                  }
                 ],
               }}
             >
@@ -1966,30 +2006,12 @@ const CalendarScreen = (): React.JSX.Element => {
                 }}
                 onPress={() => {
                   console.log('💼 Crear nuevo servicio');
-                  setShowFloatingButtons(false);
+                  hideFloatingButtons();
                 }}
               >
                 <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>SERV</Text>
               </TouchableOpacity>
             </Animated.View>
-
-            {/* Overlay semi-transparente para cerrar botones al tocar fuera */}
-            <TouchableOpacity 
-              style={{
-                position: 'absolute',
-                top: -2000,
-                left: -1000,
-                right: -1000,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                zIndex: 99998,
-              }}
-              onPress={() => {
-                console.log('❌ Cerrando botones flotantes');
-                setShowFloatingButtons(false);
-              }}
-              activeOpacity={1}
-            />
           </>
         )}
 
