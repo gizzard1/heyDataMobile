@@ -276,8 +276,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onGoBack }) => {
       {/* Content */}
       <ScrollView 
         style={styles.content}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
+        bounces={true}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
       >
         {settingsSections.map(renderSection)}
       </ScrollView>
@@ -313,6 +317,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingVertical: 20,
+    paddingBottom: 50,
+    flexGrow: 1,
   },
   section: {
     marginBottom: 32,

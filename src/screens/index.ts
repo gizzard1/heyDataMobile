@@ -7,3 +7,7 @@ export { default as AppointmentDetailScreen } from './AppointmentDetailScreen';
 export { default as ServiceDetailScreen } from './ServiceDetailScreen';
 export { default as AddPaymentMethodScreen } from './AddPaymentMethodScreen';
 export { default as PaymentScreen } from './PaymentScreen';
+export { default as CreateAppointmentScreen } from './CreateAppointmentScreen';
+export { default as CreateSaleScreen } from './CreateSaleScreen';
+export { default as ProductsScreen } from './ProductsScreen';
+export { default as ProductDetailScreen } from './ProductDetailScreen';

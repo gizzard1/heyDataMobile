@@ -450,7 +450,12 @@ const AppointmentDetailScreen: React.FC<AppointmentDetailScreenProps> = ({
 
       <ScrollView 
         style={styles.content} 
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
         onTouchStart={closeAllServiceCards}
         onScrollBeginDrag={closeAllServiceCards}
       >
@@ -651,6 +656,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 50,
+    flexGrow: 1,
   },
   form: {
     padding: 20,
