@@ -162,9 +162,50 @@ export const useCalendarState = () => {
   };
 
   // Funciones para mover citas
-  const handleAppointmentMove = (eventId: string, newWorkerIndex: number, newTimePosition?: number) => {
-    // Esta función se implementará cuando sea necesaria
-    console.log('Moving appointment:', { eventId, newWorkerIndex, newTimePosition });
+  const handleAppointmentMove = (eventId: string, newWorkerIndex: number, newTimePosition?: number, newHeightPx?: number) => {
+    // Nueva lógica: slotHeight = 35px representa intervalMinutes = 15
+    if (newTimePosition == null) return;
+    const slotHeight = 35; // px por slot
+    const intervalMinutes = 15; // minutos por slot
+    const startHourBase = 9; // horario de inicio visible
+    // Calcular slot flotante y snapear
+    const rawSlots = newTimePosition / slotHeight; // slots desde inicio
+    const snappedSlots = Math.round(rawSlots); // ya que cada slot = 15min queremos alineación perfecta
+    const startMinutesFromBase = snappedSlots * intervalMinutes;
+    const startTotalMinutes = startHourBase * 60 + startMinutesFromBase;
+
+    setEvents(prev => prev.map(ev => {
+      if (ev.id !== eventId) return ev;
+      // Duración
+      let durationMinutes: number;
+      if (typeof newHeightPx === 'number' && newHeightPx > 0) {
+        const rawDurationSlots = newHeightPx / slotHeight;
+        const snappedDurationSlots = Math.max(1, Math.round(rawDurationSlots));
+        durationMinutes = snappedDurationSlots * intervalMinutes;
+      } else {
+        const [sh, sm] = ev.startTime.split(':').map(Number);
+        const [eh, em] = ev.endTime.split(':').map(Number);
+        durationMinutes = (eh * 60 + em) - (sh * 60 + sm);
+      }
+      // Limitar a rango visible (hasta 18:00)
+      const endLimitHour = 18;
+      let endTotalMinutes = startTotalMinutes + durationMinutes;
+      if (endTotalMinutes > endLimitHour * 60) {
+        endTotalMinutes = endLimitHour * 60;
+      }
+      const format = (n: number) => n.toString().padStart(2, '0');
+      const newStartH = Math.floor(startTotalMinutes / 60);
+      const newStartM = startTotalMinutes % 60;
+      const newEndH = Math.floor(endTotalMinutes / 60);
+      const newEndM = endTotalMinutes % 60;
+      const newWorker = WORKERS[newWorkerIndex];
+      return {
+        ...ev,
+        worker: newWorker?.name || ev.worker,
+        startTime: `${format(newStartH)}:${format(newStartM)}`,
+        endTime: `${format(newEndH)}:${format(newEndM)}`,
+      };
+    }));
   };
 
   return {

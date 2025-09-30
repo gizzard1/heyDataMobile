@@ -28,7 +28,7 @@ const { width } = Dimensions.get('window');
 // Vista Diaria
 export const DayView: React.FC<CalendarViewProps & {
   onAppointmentResize: (eventId: string, newStartTime: string, newEndTime: string) => void;
-  onAppointmentMove: (eventId: string, newWorkerIndex: number, newTimePosition?: number) => void;
+  onAppointmentMove: (eventId: string, newWorkerIndex: number, newTimePosition?: number, newHeightPx?: number) => void;
   onResizeModeChange: (eventId: string, isResizing: boolean) => void;
   anyCardInResizeMode: boolean;
   cancelAllResizeModes: () => void;
@@ -224,32 +224,24 @@ export const DayView: React.FC<CalendarViewProps & {
               
               {/* Contenedor absoluto para las citas */}
               <View style={calendarStyles.eventsContainer}>
-                {visibleWorkers.map((worker, workerIndex) => {
-                  const workerEvents = dayEvents.filter(event => event.worker === worker.name);
+                {visibleWorkers.map((worker, wIndex) => {
+                  const workerEvents = dayEvents.filter(ev => ev.worker === worker.name);
                   return workerEvents.map(event => (
                     <ResizableAppointmentCard
                       key={event.id}
-                      event={event}
-                      cardStyle={{
-                        left: workerIndex * columnWidth,
-                        width: columnWidth - 12,
-                        top: getEventTopPosition(event.startTime, TIME_SLOTS),
-                        height: getEventHeight(event.startTime, event.endTime),
-                      }}
-                      onPress={() => onEventPress(event)}
-                      onResize={(newStartTime, newEndTime) => 
-                        onAppointmentResize(event.id, newStartTime, newEndTime)
-                      }
-                      onMove={(newWorkerIndex, newTimePosition) => 
-                        onAppointmentMove(event.id, newWorkerIndex, newTimePosition)
-                      }
-                      onResizeModeChange={(isResizing) => 
-                        onResizeModeChange(event.id, isResizing)
-                      }
-                      timeSlotHeight={60}
-                      columnWidth={columnWidth}
+                      event={event as any}
+                      workerIndex={wIndex}
                       totalColumns={visibleWorkers.length}
-                      containerHeight={TIME_SLOTS.length * 60}
+                      columnWidth={columnWidth}
+                      slotHeight={35} // consistente con TIME_CONFIG.SLOT_HEIGHT
+                      startHour={9}
+                      endHour={18}
+                      intervalMinutes={15}
+                      onPress={() => onEventPress(event)}
+                      onResize={(newStart, newEnd) => onAppointmentResize(event.id, newStart, newEnd)}
+                      onMove={(newWorkerIndex, newTopPx, newHeightPx) => 
+                        onAppointmentMove(event.id, newWorkerIndex, newTopPx, newHeightPx)
+                      }
                     />
                   ));
                 })}
