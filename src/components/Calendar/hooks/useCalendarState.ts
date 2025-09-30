@@ -132,18 +132,63 @@ export const useCalendarState = () => {
 
   // Funciones para redimensionar citas
   const handleAppointmentResize = (eventId: string, newStartTime: string, newEndTime: string) => {
-    setEvents(prevEvents => 
-      prevEvents.map(event => {
-        if (event.id === eventId) {
-          return {
-            ...event,
-            startTime: newStartTime,
-            endTime: newEndTime,
-          };
+    setEvents(prevEvents => {
+      const startHourBase = 9;
+      const endHourLimit = 18;
+      const intervalMinutes = 15;
+
+      const timeToMin = (t: string) => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+      const minToTime = (mTotal: number) => {
+        const h = Math.floor(mTotal/60); const m = mTotal%60; const pad=(n:number)=>n.toString().padStart(2,'0');
+        return `${pad(h)}:${pad(m)}`;
+      };
+
+      return prevEvents.map(event => {
+        if (event.id !== eventId) return event;
+        const workerName = event.worker;
+        let desiredStart = timeToMin(newStartTime);
+        let desiredEnd = timeToMin(newEndTime);
+        const duration = desiredEnd - desiredStart;
+
+        // Asegurar límites día
+        desiredStart = Math.max(startHourBase*60, desiredStart);
+        desiredEnd = desiredStart + duration;
+        if (desiredEnd > endHourLimit*60) desiredEnd = endHourLimit*60;
+        let adjusted = true;
+        const others = prevEvents.filter(ev => ev.id !== eventId && ev.worker === workerName)
+          .map(ev => ({
+            start: timeToMin(ev.startTime),
+            end: timeToMin(ev.endTime)
+          }))
+          .sort((a,b)=>a.start-b.start);
+
+        const overlaps = (s:number,e:number,oS:number,oE:number)=> s < oE && e > oS;
+        let guard = 0;
+        while (adjusted && guard < 100) {
+          guard++;
+          const conflict = others.find(o => overlaps(desiredStart, desiredEnd, o.start, o.end));
+          if (!conflict) {
+            adjusted = false; // libre
+          } else {
+            // Mover justo después del conflicto
+            desiredStart = conflict.end;
+            // Snap a intervalo
+            const mod = (desiredStart - startHourBase*60) % intervalMinutes;
+            if (mod !== 0) desiredStart += (intervalMinutes - mod);
+            desiredEnd = desiredStart + duration;
+            if (desiredEnd > endHourLimit*60) {
+              // No cabe, revertimos a tiempos originales
+              return event; 
+            }
+          }
         }
-        return event;
-      })
-    );
+        return {
+          ...event,
+          startTime: minToTime(desiredStart),
+          endTime: minToTime(desiredEnd)
+        };
+      });
+    });
   };
 
   const handleResizeModeChange = (eventId: string, isResizing: boolean) => {
@@ -174,38 +219,58 @@ export const useCalendarState = () => {
     const startMinutesFromBase = snappedSlots * intervalMinutes;
     const startTotalMinutes = startHourBase * 60 + startMinutesFromBase;
 
-    setEvents(prev => prev.map(ev => {
-      if (ev.id !== eventId) return ev;
-      // Duración
-      let durationMinutes: number;
-      if (typeof newHeightPx === 'number' && newHeightPx > 0) {
-        const rawDurationSlots = newHeightPx / slotHeight;
-        const snappedDurationSlots = Math.max(1, Math.round(rawDurationSlots));
-        durationMinutes = snappedDurationSlots * intervalMinutes;
-      } else {
-        const [sh, sm] = ev.startTime.split(':').map(Number);
-        const [eh, em] = ev.endTime.split(':').map(Number);
-        durationMinutes = (eh * 60 + em) - (sh * 60 + sm);
-      }
-      // Limitar a rango visible (hasta 18:00)
-      const endLimitHour = 18;
-      let endTotalMinutes = startTotalMinutes + durationMinutes;
-      if (endTotalMinutes > endLimitHour * 60) {
-        endTotalMinutes = endLimitHour * 60;
-      }
-      const format = (n: number) => n.toString().padStart(2, '0');
-      const newStartH = Math.floor(startTotalMinutes / 60);
-      const newStartM = startTotalMinutes % 60;
-      const newEndH = Math.floor(endTotalMinutes / 60);
-      const newEndM = endTotalMinutes % 60;
+    setEvents(prev => {
+      const startHourBase = 9;
+      const endHourLimit = 18;
+      const timeToMin = (t: string) => { const [h,m]=t.split(':').map(Number); return h*60+m; };
+      const minToTime = (mTotal: number) => { const h=Math.floor(mTotal/60); const m=mTotal%60; const pad=(n:number)=>n.toString().padStart(2,'0'); return `${pad(h)}:${pad(m)}`; };
       const newWorker = WORKERS[newWorkerIndex];
-      return {
-        ...ev,
-        worker: newWorker?.name || ev.worker,
-        startTime: `${format(newStartH)}:${format(newStartM)}`,
-        endTime: `${format(newEndH)}:${format(newEndM)}`,
-      };
-    }));
+      return prev.map(ev => {
+        if (ev.id !== eventId) return ev;
+        // Duración previa o derivada de altura
+        let durationMinutes: number;
+        if (typeof newHeightPx === 'number' && newHeightPx > 0) {
+          const rawDurationSlots = newHeightPx / slotHeight;
+          const snappedDurationSlots = Math.max(1, Math.round(rawDurationSlots));
+          durationMinutes = snappedDurationSlots * intervalMinutes;
+        } else {
+          durationMinutes = timeToMin(ev.endTime) - timeToMin(ev.startTime);
+        }
+        let desiredStart = startTotalMinutes; // calculado arriba
+        let desiredEnd = desiredStart + durationMinutes;
+        if (desiredEnd > endHourLimit*60) desiredEnd = endHourLimit*60;
+        // Ajustar duración si se recortó por límite
+        durationMinutes = desiredEnd - desiredStart;
+
+        // Colisiones con eventos de mismo worker destino
+        const targetWorkerName = newWorker?.name || ev.worker;
+        const others = prev.filter(o => o.id !== ev.id && (o.worker === targetWorkerName))
+          .map(o => ({ start: timeToMin(o.startTime), end: timeToMin(o.endTime) }))
+          .sort((a,b)=>a.start-b.start);
+        const overlaps = (s:number,e:number,oS:number,oE:number)=> s < oE && e > oS;
+        let guard = 0;
+        while (guard < 100) {
+          guard++;
+            const conflict = others.find(o => overlaps(desiredStart, desiredEnd, o.start, o.end));
+            if (!conflict) break;
+            desiredStart = conflict.end; // empujar al final
+            // Snap a intervalo de 15
+            const mod = (desiredStart - startHourBase*60) % intervalMinutes;
+            if (mod !== 0) desiredStart += (intervalMinutes - mod);
+            desiredEnd = desiredStart + durationMinutes;
+            if (desiredEnd > endHourLimit*60) {
+              // No cabe; revertir a tiempos originales
+              return ev;
+            }
+        }
+        return {
+          ...ev,
+          worker: targetWorkerName,
+          startTime: minToTime(desiredStart),
+          endTime: minToTime(desiredEnd)
+        };
+      });
+    });
   };
 
   return {

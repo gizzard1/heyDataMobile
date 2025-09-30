@@ -5,10 +5,10 @@
  * @format
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { CalendarViewProps } from '../types';
-import { TIME_SLOTS, COLUMN_CONFIG } from '../utils/constants';
+import { TIME_SLOTS, COLUMN_CONFIG, AUTO_SCROLL_CONFIG } from '../utils/constants';
 import { 
   getVisibleWorkers, 
   getColumnWidth, 
@@ -60,13 +60,59 @@ export const DayView: React.FC<CalendarViewProps & {
   const isScrollingFromTime = useRef(false);
   const isScrollingFromMain = useRef(false);
   const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [draggingCard, setDraggingCard] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | undefined>(undefined);
+  const [autoScrollActiveTop, setAutoScrollActiveTop] = useState(false);
+  const [autoScrollActiveBottom, setAutoScrollActiveBottom] = useState(false);
+  const autoScrollFadeTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [currentScrollY, setCurrentScrollY] = useState(0);
+  // Guardar último offset vertical para auto-scroll controlado por la tarjeta
+  const lastScrollYRef = useRef(0);
+  // Acumulador/throttle para deltas de auto-scroll
+  const pendingAutoScrollDelta = useRef(0);
+  const autoScrollScheduled = useRef(false);
+
+  const scheduleAutoScroll = (delta: number) => {
+    // Acumular delta y programar en el siguiente frame para suavizar
+    pendingAutoScrollDelta.current += delta;
+    if (autoScrollScheduled.current) return;
+    autoScrollScheduled.current = true;
+    requestAnimationFrame(() => {
+      autoScrollScheduled.current = false;
+      const applyDelta = pendingAutoScrollDelta.current;
+      pendingAutoScrollDelta.current = 0;
+      if (!mainScrollRef.current || !timeScrollRef.current) return;
+      if (applyDelta === 0) return;
+      const slotHeight = 35; // consistente con TIME_CONFIG.SLOT_HEIGHT
+      const paddingBottom = 120; // según estilo contentScrollView
+      const contentHeight = TIME_SLOTS.length * slotHeight + paddingBottom;
+      if (viewportHeight == null) return; // aún no medido
+      const maxScroll = Math.max(0, contentHeight - viewportHeight);
+      let newY = lastScrollYRef.current + applyDelta;
+      if (newY < 0) newY = 0;
+      if (newY > maxScroll) newY = maxScroll;
+      if (Math.abs(newY - lastScrollYRef.current) < 0.5) return; // delta insignificante
+      lastScrollYRef.current = newY;
+      // Desactivar flags para evitar loops infinitos durante scroll programático
+      isScrollingFromMain.current = true;
+      isScrollingFromTime.current = true;
+      mainScrollRef.current.scrollTo({ y: newY, animated: false });
+      timeScrollRef.current.scrollTo({ y: newY, animated: false });
+      // Liberar flags en un pequeño timeout (similar a otros handlers)
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+      scrollTimeout.current = setTimeout(() => {
+        isScrollingFromMain.current = false;
+        isScrollingFromTime.current = false;
+      }, 16);
+    });
+  };
 
   return (
     <View style={calendarStyles.dayViewContainer}>
       {/* Header con trabajadoras - FIJO */}
       <View style={calendarStyles.workersHeaderFixed}>
         <View style={calendarStyles.timeColumnHeaderFixed} />
-        <ScrollView 
+          <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           ref={headerScrollRef}
@@ -74,7 +120,8 @@ export const DayView: React.FC<CalendarViewProps & {
           removeClippedSubviews={true}
           directionalLockEnabled={true}
           decelerationRate="fast"
-          bounces={false}
+            bounces={false}
+            scrollEnabled={!draggingCard}
           pagingEnabled={false}
           onScroll={(event) => {
             if (isScrollingFromContent.current) return;
@@ -113,11 +160,14 @@ export const DayView: React.FC<CalendarViewProps & {
             removeClippedSubviews={true}
             decelerationRate="fast"
             bounces={true}
+            scrollEnabled={!draggingCard}
             onScroll={(event) => {
               if (isScrollingFromMain.current) return;
               
               const scrollY = event.nativeEvent.contentOffset.y;
               isScrollingFromTime.current = true;
+              lastScrollYRef.current = scrollY;
+              setCurrentScrollY(scrollY);
               
               if (mainScrollRef.current) {
                 mainScrollRef.current.scrollTo({ y: scrollY, animated: false });
@@ -156,11 +206,15 @@ export const DayView: React.FC<CalendarViewProps & {
           decelerationRate="fast"
           bounces={true}
           nestedScrollEnabled={true}
+          scrollEnabled={!draggingCard}
+          onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
           onScroll={(event) => {
             if (isScrollingFromTime.current) return;
             
             const scrollY = event.nativeEvent.contentOffset.y;
             isScrollingFromMain.current = true;
+            lastScrollYRef.current = scrollY;
+            setCurrentScrollY(scrollY);
             
             if (timeScrollRef.current) {
               timeScrollRef.current.scrollTo({ y: scrollY, animated: false });
@@ -182,6 +236,7 @@ export const DayView: React.FC<CalendarViewProps & {
             decelerationRate="fast"
             bounces={false}
             nestedScrollEnabled={true}
+            scrollEnabled={!draggingCard}
             onScroll={(event) => {
               if (isScrollingFromHeader.current) return;
               
@@ -198,14 +253,8 @@ export const DayView: React.FC<CalendarViewProps & {
               }, 50);
             }}
           >
-            <TouchableOpacity 
+            <View 
               style={calendarStyles.calendarGrid}
-              activeOpacity={1}
-              onPress={() => {
-                if (anyCardInResizeMode) {
-                  cancelAllResizeModes();
-                }
-              }}
             >
               {TIME_SLOTS.map((timeSlot, index) => (
                 <View key={timeSlot.time} style={[
@@ -223,7 +272,7 @@ export const DayView: React.FC<CalendarViewProps & {
               ))}
               
               {/* Contenedor absoluto para las citas */}
-              <View style={calendarStyles.eventsContainer}>
+              <View style={calendarStyles.eventsContainer} pointerEvents="box-none">
                 {visibleWorkers.map((worker, wIndex) => {
                   const workerEvents = dayEvents.filter(ev => ev.worker === worker.name);
                   return workerEvents.map(event => (
@@ -242,11 +291,47 @@ export const DayView: React.FC<CalendarViewProps & {
                       onMove={(newWorkerIndex, newTopPx, newHeightPx) => 
                         onAppointmentMove(event.id, newWorkerIndex, newTopPx, newHeightPx)
                       }
+                      onDragStateChange={(d) => setDraggingCard(d)}
+                      viewportHeight={viewportHeight}
+                      currentScrollY={currentScrollY}
+                      onAutoScroll={(delta) => {
+                        scheduleAutoScroll(delta);
+                        // Feedback visual sombreado
+                        if (delta < 0) {
+                          setAutoScrollActiveTop(true);
+                          if (autoScrollFadeTimeout.current) clearTimeout(autoScrollFadeTimeout.current);
+                          autoScrollFadeTimeout.current = setTimeout(()=>{
+                            setAutoScrollActiveTop(false);
+                          }, AUTO_SCROLL_CONFIG.SHADE_FADE_MS);
+                        } else if (delta > 0) {
+                          setAutoScrollActiveBottom(true);
+                          if (autoScrollFadeTimeout.current) clearTimeout(autoScrollFadeTimeout.current);
+                          autoScrollFadeTimeout.current = setTimeout(()=>{
+                            setAutoScrollActiveBottom(false);
+                          }, AUTO_SCROLL_CONFIG.SHADE_FADE_MS);
+                        }
+                      }}
+                      autoScrollEdgeThreshold={AUTO_SCROLL_CONFIG.EDGE_THRESHOLD}
+                      autoScrollSpeed={AUTO_SCROLL_CONFIG.SPEED}
                     />
                   ));
                 })}
               </View>
-            </TouchableOpacity>
+              {(autoScrollActiveTop || autoScrollActiveBottom) && (
+                <>
+                  {autoScrollActiveTop && (
+                    <View style={calendarStyles.autoScrollShadeTop}>
+                      <View style={calendarStyles.autoScrollGradientTop} />
+                    </View>
+                  )}
+                  {autoScrollActiveBottom && (
+                    <View style={calendarStyles.autoScrollShadeBottom}>
+                      <View style={calendarStyles.autoScrollGradientBottom} />
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
           </ScrollView>
         </ScrollView>
       </View>

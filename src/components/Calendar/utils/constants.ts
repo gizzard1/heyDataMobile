@@ -151,6 +151,13 @@ export const TIME_CONFIG = {
   EMPTY_HOUR_BORDER_WIDTH: 1,
 };
 
+// Configuración de auto-scroll (vertical principal)
+export const AUTO_SCROLL_CONFIG = {
+  EDGE_THRESHOLD: 60,   // px desde el borde superior/inferior donde se activa
+  SPEED: 26,            // px por frame (aprox) de desplazamiento mientras se arrastra
+  SHADE_FADE_MS: 140,   // tiempo para ocultar el sombreado tras el último delta
+};
+
 // Configuración de navegación
 export const NAV_CONFIG = {
   ITEMS: [
