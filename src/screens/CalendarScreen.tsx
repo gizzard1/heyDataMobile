@@ -21,6 +21,7 @@ import {
 import { CalendarHeader } from '../components/Calendar/components/CalendarHeader';
 import { CalendarFilter } from '../components/Calendar/components/CalendarFilter';
 import { DayView, WeekView, MonthView } from '../components/Calendar/components/CalendarViews';
+import { AppointmentDetailModal } from '../components/Calendar/components/AppointmentDetailModal';
 
 // Componentes existentes que se mantienen
 import AppointmentDetailScreen from './AppointmentDetailScreen';
@@ -203,52 +204,25 @@ const CalendarScreen = (): React.JSX.Element => {
         onClose={() => calendarState.setShowFilterModal(false)}
       />
 
-      {/* Modal simple para mostrar detalles de eventos */}
-      {calendarState.showEventModal && calendarState.selectedEvent && (
-        <Modal
-          animationType="slide"
-          transparent={false}
-          visible={calendarState.showEventModal}
-          onRequestClose={calendarState.closeEventDetails}
-        >
-          <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-            <View style={{ 
-              flexDirection: 'row', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              paddingHorizontal: 20,
-              paddingVertical: 16,
-              backgroundColor: '#ffffff',
-              borderBottomWidth: 1,
-              borderBottomColor: '#e0e0e0'
-            }}>
-              <TouchableOpacity onPress={calendarState.closeEventDetails}>
-                <BackIcon color="#007AFF" size={24} />
-              </TouchableOpacity>
-              <Text style={{ fontSize: 18, fontWeight: '600', color: '#333' }}>
-                Detalles de la Cita
-              </Text>
-              <TouchableOpacity onPress={() => {
-                calendarState.setShowEventModal(false);
-                calendarState.setShowAppointmentDetail(true);
-              }}>
-                <EditIcon color="#007AFF" size={24} />
-              </TouchableOpacity>
-            </View>
-            <View style={{ flex: 1, padding: 16 }}>
-              <Text style={{ fontSize: 16, marginBottom: 8 }}>
-                Cliente: {calendarState.selectedEvent.cliente?.nombre || calendarState.selectedEvent.title}
-              </Text>
-              <Text style={{ fontSize: 16, marginBottom: 8 }}>
-                Horario: {calendarState.selectedEvent.startTime} - {calendarState.selectedEvent.endTime}
-              </Text>
-              <Text style={{ fontSize: 16, marginBottom: 8 }}>
-                Total: ${calendarState.selectedEvent.total}
-              </Text>
-            </View>
-          </View>
-        </Modal>
-      )}
+      {/* Modal de Detalles de Cita */}
+      <AppointmentDetailModal
+        visible={calendarState.showEventModal}
+        selectedEvent={calendarState.selectedEvent}
+        onClose={calendarState.closeEventDetails}
+        onEdit={() => {
+          calendarState.setShowEventModal(false);
+          calendarState.setShowAppointmentDetail(true);
+        }}
+        onPay={() => {
+          calendarState.setShowEventModal(false);
+          calendarState.setShowPaymentScreen(true);
+        }}
+        onDelete={() => {
+          // Aquí puedes agregar la lógica para eliminar la cita
+          console.log('Eliminar cita:', calendarState.selectedEvent?.id);
+          calendarState.closeEventDetails();
+        }}
+      />
 
       {/* Pantallas modales */}
       {calendarState.showAppointmentDetail && calendarState.selectedEvent && (
