@@ -1,48 +1,38 @@
 /**
  * ResizableAppointmentCard (Grid Based) - HeyData Mobile
- * Tarjeta de cita basada en celdas (slots) de tamaño fijo.
- * - Cada slot = intervalMinutes
- * - Altura = durationSlots * slotHeight
- * - Posición vertical = startSlot * slotHeight
- * - Posición horizontal = workerIndex * columnWidth
- * Soporta: mover (drag), resize top, resize bottom.
+ * ------------------------------------------------------
+ * Tarjeta interactiva que representa una cita en el calendario diario.
+ * El grid temporal se modela en "slots" (intervalos fijos en minutos).
+ *
+ * REGLAS BÁSICAS DE POSICIONAMIENTO:
+ *  - Cada slot representa intervalMinutes (p.ej. 15 min).
+ *  - Altura (height)  = durationSlots * slotHeight.
+ *  - Posición Y (top) = startSlot * slotHeight.
+ *  - Posición X (left)= workerIndex * columnWidth.
+ *
+ * INTERACCIONES SOPORTADAS:
+ *  - Drag (largo + mover): Cambia de columna (trabajadora) y horario.
+ *  - Resize superior: Ajusta hora de inicio (startTime).
+ *  - Resize inferior: Ajusta hora de fin (endTime).
+ *
+ * ESTRATEGIA DE GESTOS:
+ *  - Se usa un long press (380ms) antes de activar el modo drag real.
+ *  - Durante el drag continuo (continuousDrag=true) el eje vertical es libre
+ *    y el horizontal hace snap animado a columnas.
+ *  - Al soltar se calculan start/end definitivos y se envían via onMove / onResize.
+ *
+ * SINCRONIZACIÓN EXTERNA:
+ *  - Si el padre cambia start/end/worker desde afuera, un efecto reactualiza animaciones.
+ *
+ * NOTA: La lógica se ha mantenido en un solo componente (con dependencias
+ *       extraídas a utilidades y estilos) para equilibrar legibilidad y número de archivos.
  */
 
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
-
-interface CalendarEventLite {
-  id: string;
-  startTime: string; // HH:MM
-  endTime: string;   // HH:MM
-  cliente: { id: string; nombre: string };
-  detalles: Array<{ servicio: { nombre: string } }>;
-  color?: string;
-  worker?: string;
-}
-
-interface CardProps {
-  event: CalendarEventLite;
-  workerIndex: number;
-  totalColumns: number;
-  columnWidth: number;
-  slotHeight: number;       // px por slot
-  startHour: number;        // ej 9
-  endHour: number;          // ej 18
-  intervalMinutes: number;  // ej 15
-  onPress: () => void;
-  onMove: (newWorkerIndex: number, newTopPx: number, newHeightPx: number, newStartTime?: string, newEndTime?: string) => void;
-  onResize: (newStartTime: string, newEndTime: string) => void;
-  widthOffset?: number;     // margen interno opcional
-  /** Si true: durante el drag el movimiento es continuo (px) y solo se snapea al soltar */
-  continuousDrag?: boolean;
-  onDragStateChange?: (dragging: boolean) => void; // Para desactivar scroll externo
-  onAutoScroll?: (deltaY: number) => void; // Solicitud de auto-scroll vertical
-  viewportHeight?: number; // Altura visible del área scrollable
-  autoScrollEdgeThreshold?: number; // zona sensible en px
-  autoScrollSpeed?: number; // px por frame de gesto
-  currentScrollY?: number; // offset actual del scroll externo para permitir movimiento más libre
-}
+import { Animated, PanResponder, Text, View } from 'react-native';
+import { timeToSlots as baseTimeToSlots, slotsToTime as baseSlotsToTime, clamp } from './Calendar/utils/timeSlot';
+import { appointmentCardStyles as styles } from './Calendar/components/appointment/ResizableAppointmentCard.styles';
+import { ResizableCardProps as CardProps } from './Calendar/types/appointmentCard.types';
 
 const ResizableAppointmentCard: React.FC<CardProps> = ({
   event,
@@ -65,36 +55,33 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
   autoScrollSpeed = 24,
   currentScrollY = 0,
 }) => {
-  // ---- Utilidades tiempo ↔ slots ----
-  const timeToSlots = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    return ((h - startHour) * 60 + m) / intervalMinutes;
-  };
-  const slotsToTime = (slots: number) => {
-    const totalMins = slots * intervalMinutes + startHour * 60;
-    const h = Math.floor(totalMins / 60);
-    const m = totalMins % 60;
-    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-  };
+  // ======================================================
+  // Conversión tiempo ↔ slots (usa helpers reutilizables)
+  // ======================================================
+  const timeToSlots = (time: string) => baseTimeToSlots(time, startHour, intervalMinutes);
+  const slotsToTime = (slots: number) => baseSlotsToTime(slots, startHour, intervalMinutes);
 
   const startSlot = useMemo(() => timeToSlots(event.startTime), [event.startTime]);
   const endSlot = useMemo(() => timeToSlots(event.endTime), [event.endTime]);
   const durationSlots = Math.max(1, endSlot - startSlot);
   const maxSlots = (endHour - startHour) * (60/intervalMinutes);
 
-  // ---- Estado animado ----
+  // ======================================================
+  // Animated Values (posición y tamaño) y estados derivados
+  // x: posición horizontal (columna) | y: posición vertical | hA: altura dinámica
+  // ======================================================
   const x = useRef(new Animated.Value(workerIndex * columnWidth)).current;
   const y = useRef(new Animated.Value(startSlot * slotHeight)).current;
   const hA = useRef(new Animated.Value(durationSlots * slotHeight)).current;
 
-  // Ref mutables de estado lógico
+  // Referencias mutables (no causan re-render) para la lógica interna
   const currentStartSlotRef = useRef(startSlot);
   const currentDurationRef = useRef(durationSlots);
   const currentWorkerRef = useRef(workerIndex);
 
-  // Vista previa (durante drag/resize)
+  // Vista previa de horario mientras se mueve o se redimensiona
   const [preview, setPreview] = useState<string | null>(null);
-  // Texto horario en reposo (actualizado al soltar)
+  // Texto horario persistente (actualizado tras soltar / terminar resize)
   const [displayedTime, setDisplayedTime] = useState(`${event.startTime} - ${event.endTime}`);
   const [dragging, setDragging] = useState(false);
   const [resizingTop, setResizingTop] = useState(false);
@@ -104,14 +91,18 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const LONG_PRESS_MS = 380;
 
-  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+  // Recalcula la cadena "HH:MM - HH:MM" para mostrar mientras se manipula la tarjeta
   const updatePreview = (startS: number, durS: number) => {
     const st = slotsToTime(startS);
     const et = slotsToTime(startS + durS);
     setPreview(`${st} - ${et}`);
   };
 
-  // ---- Drag principal ----
+  // ======================================================
+  // DRAG PRINCIPAL (PanResponder)
+  // - Gestiona long press, movimiento, auto-scroll y snapping horizontal.
+  // - Llama a onMove al soltar si hubo desplazamiento real.
+  // ======================================================
   const dragInitialXRef = useRef(0);
   const dragInitialYRef = useRef(0);
   const scrollAtDragStartRef = useRef(0);
@@ -323,7 +314,12 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
     })
   ).current;
 
-  // Auto-scroll loop
+  // ======================================================
+  // AUTO-SCROLL LOOP
+  // Mientras la tarjeta se arrastra cerca de los bordes verticales se
+  // solicita desplazamiento al contenedor padre usando onAutoScroll.
+  // El loop usa requestAnimationFrame para suavizar.
+  // ======================================================
   useEffect(() => {
     if (!dragging || resizingTop || resizingBottom) {
       autoScrollLoopRunningRef.current = false;
@@ -353,7 +349,10 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
     requestAnimationFrame(loop);
   }, [dragging, resizingTop, resizingBottom, currentScrollY, autoScrollSpeed, viewportHeight]);
 
-  // ---- Resize top ----
+  // ======================================================
+  // RESIZE SUPERIOR
+  // Ajusta hora de inicio (startTime) manteniendo el fin original.
+  // ======================================================
   const topResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -403,7 +402,10 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
     })
   ).current;
 
-  // ---- Resize bottom ----
+  // ======================================================
+  // RESIZE INFERIOR
+  // Ajusta la duración extendiendo o reduciendo la hora de fin (endTime).
+  // ======================================================
   const bottomResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -446,7 +448,11 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
 
   const width = columnWidth - widthOffset; // dejar margen lateral
 
-  // ---- Sincronizar cambios externos (por ejemplo, colisión que ajusta horario) ----
+  // ======================================================
+  // SINCRONIZACIÓN EXTERNA
+  // Si el evento padre cambia tiempo o columna, se anima la transición
+  // para evitar saltos bruscos visuales.
+  // ======================================================
   useEffect(() => {
     // Recalcular slots con props actuales
     const extStart = timeToSlots(event.startTime);
@@ -511,38 +517,5 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
     </Animated.View>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    position: 'absolute',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
-    borderLeftWidth: 4,
-    overflow: 'visible',
-    // Evitar selección de texto en web
-    userSelect: 'none' as any,
-  },
-  active: {
-    // Mantener estilos sutiles sin elevar sobre otras tarjetas
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)'
-  },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 10, paddingBottom: 10 },
-  time: { fontSize: 11, fontWeight: '700', color: '#fff', marginBottom: 2 },
-  title: { fontSize: 12, fontWeight: '600', color: '#fff', marginBottom: 2 },
-  services: { width: '100%' },
-  service: { fontSize: 10, color: 'rgba(255,255,255,0.85)' },
-  more: { fontSize: 10, color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' },
-  internalHandleTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 56, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent', zIndex: 10, pointerEvents: 'box-only' as any },
-  internalHandleBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 56, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent', zIndex: 10, pointerEvents: 'box-only' as any },
-  internalLine: { height: 5, borderRadius: 3, backgroundColor: '#FFFFFF', width: '55%', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 2, shadowOffset: { width:0, height:1 } },
-});
 
 export default ResizableAppointmentCard;
