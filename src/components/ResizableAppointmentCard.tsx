@@ -31,7 +31,7 @@ interface CardProps {
   endHour: number;          // ej 18
   intervalMinutes: number;  // ej 15
   onPress: () => void;
-  onMove: (newWorkerIndex: number, newTopPx: number, newHeightPx: number) => void;
+  onMove: (newWorkerIndex: number, newTopPx: number, newHeightPx: number, newStartTime?: string, newEndTime?: string) => void;
   onResize: (newStartTime: string, newEndTime: string) => void;
   widthOffset?: number;     // margen interno opcional
   /** Si true: durante el drag el movimiento es continuo (px) y solo se snapea al soltar */
@@ -238,17 +238,20 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
       },
       onPanResponderRelease: (_, g) => {
         holdTimerRef.current && clearTimeout(holdTimerRef.current);
-        const dragExecuted = longPressReadyRef.current && dragging;
+        // Ajuste: considerar drag válido si el longPress se completó aunque 'dragging' no se haya activado correctamente.
+        const dragExecuted = longPressReadyRef.current; // Eliminamos la dependencia de 'dragging'
         const wasMove = movedDuringGestureRef.current && dragExecuted;
         edgeDirectionRef.current = 0;
         autoScrollLoopRunningRef.current = false;
         let finalWorker: number;
         let finalStart: number;
+        // (debug logs removed)
         if (continuousDrag && dragExecuted) {
           const currentY = (y as any)._value ?? startSlot * slotHeight;
           // Usar la última columna snapeada
           finalWorker = draggingWorkerRef.current;
           finalStart = clamp(Math.round(currentY / slotHeight), 0, maxSlots - currentDurationRef.current);
+          // (debug logs removed)
           Animated.parallel([
             Animated.timing(x, { toValue: finalWorker * columnWidth, duration: 110, useNativeDriver: false }),
             Animated.timing(y, { toValue: finalStart * slotHeight, duration: 110, useNativeDriver: false })
@@ -261,7 +264,9 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
             const et = slotsToTime(finalStart + currentDurationRef.current);
             setDisplayedTime(`${st} - ${et}`);
             if (wasMove) {
-              onMove(finalWorker, finalStart * slotHeight, currentDurationRef.current * slotHeight);
+              const st = slotsToTime(finalStart);
+              const et = slotsToTime(finalStart + currentDurationRef.current);
+              onMove(finalWorker, finalStart * slotHeight, currentDurationRef.current * slotHeight, st, et);
             } else {
               onPress();
             }
@@ -273,6 +278,10 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
           finalWorker = clamp(currentWorkerRef.current + dCols, 0, totalColumns - 1);
           draggingWorkerRef.current = finalWorker;
           finalStart = clamp(currentStartSlotRef.current + dRows, 0, maxSlots - currentDurationRef.current);
+          // (debug logs removed)
+          if (true) {
+            // (debug logs removed)
+          }
           currentWorkerRef.current = finalWorker;
           currentStartSlotRef.current = finalStart;
           Animated.parallel([
@@ -285,13 +294,16 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
             const et = slotsToTime(finalStart + currentDurationRef.current);
             setDisplayedTime(`${st} - ${et}`);
             if (wasMove) {
-              onMove(finalWorker, finalStart * slotHeight, currentDurationRef.current * slotHeight);
+              const st = slotsToTime(finalStart);
+              const et = slotsToTime(finalStart + currentDurationRef.current);
+              onMove(finalWorker, finalStart * slotHeight, currentDurationRef.current * slotHeight, st, et);
             } else {
               onPress();
             }
             onDragStateChange?.(false);
           });
         } else {
+          // (debug logs removed)
           const moved = Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2 || movedDuringGestureRef.current;
           setDragging(false);
           setPreview(null);

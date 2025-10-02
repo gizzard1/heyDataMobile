@@ -28,7 +28,7 @@ const { width } = Dimensions.get('window');
 // Vista Diaria
 export const DayView: React.FC<CalendarViewProps & {
   onAppointmentResize: (eventId: string, newStartTime: string, newEndTime: string) => void;
-  onAppointmentMove: (eventId: string, newWorkerIndex: number, newTimePosition?: number, newHeightPx?: number) => void;
+  onAppointmentMove: (eventId: string, newWorkerIndex: number, newTimePosition?: number, newHeightPx?: number, explicitStart?: string, explicitEnd?: string) => void;
   onResizeModeChange: (eventId: string, isResizing: boolean) => void;
   anyCardInResizeMode: boolean;
   cancelAllResizeModes: () => void;
@@ -288,9 +288,9 @@ export const DayView: React.FC<CalendarViewProps & {
                       intervalMinutes={15}
                       onPress={() => onEventPress(event)}
                       onResize={(newStart, newEnd) => onAppointmentResize(event.id, newStart, newEnd)}
-                      onMove={(newWorkerIndex, newTopPx, newHeightPx) => 
-                        onAppointmentMove(event.id, newWorkerIndex, newTopPx, newHeightPx)
-                      }
+                      onMove={(newWorkerIndex, newTopPx, newHeightPx, newStartTime, newEndTime) => {
+                        onAppointmentMove(event.id, newWorkerIndex, newTopPx, newHeightPx, newStartTime, newEndTime);
+                      }}
                       onDragStateChange={(d) => setDraggingCard(d)}
                       viewportHeight={viewportHeight}
                       currentScrollY={currentScrollY}

@@ -132,6 +132,7 @@ export const useCalendarState = () => {
 
   // Funciones para redimensionar citas
   const handleAppointmentResize = (eventId: string, newStartTime: string, newEndTime: string) => {
+    let updatedEventAfterResize: CalendarEvent | null = null;
     setEvents(prevEvents => {
       const startHourBase = 9;
       const endHourLimit = 18;
@@ -143,7 +144,7 @@ export const useCalendarState = () => {
         return `${pad(h)}:${pad(m)}`;
       };
 
-      return prevEvents.map(event => {
+      const next = prevEvents.map(event => {
         if (event.id !== eventId) return event;
         const workerName = event.worker;
         let desiredStart = timeToMin(newStartTime);
@@ -182,13 +183,19 @@ export const useCalendarState = () => {
             }
           }
         }
-        return {
+        const updated = {
           ...event,
           startTime: minToTime(desiredStart),
           endTime: minToTime(desiredEnd)
         };
+        updatedEventAfterResize = updated;
+        return updated;
       });
+      return next;
     });
+    if (updatedEventAfterResize) {
+      setSelectedEvent(prev => (prev && prev.id === eventId) ? { ...prev, startTime: updatedEventAfterResize!.startTime, endTime: updatedEventAfterResize!.endTime } : prev);
+    }
   };
 
   const handleResizeModeChange = (eventId: string, isResizing: boolean) => {
@@ -207,7 +214,7 @@ export const useCalendarState = () => {
   };
 
   // Funciones para mover citas
-  const handleAppointmentMove = (eventId: string, newWorkerIndex: number, newTimePosition?: number, newHeightPx?: number) => {
+  const handleAppointmentMove = (eventId: string, newWorkerIndex: number, newTimePosition?: number, newHeightPx?: number, explicitStart?: string, explicitEnd?: string) => {
     // Nueva lógica: slotHeight = 35px representa intervalMinutes = 15
     if (newTimePosition == null) return;
     const slotHeight = 35; // px por slot
@@ -219,13 +226,24 @@ export const useCalendarState = () => {
     const startMinutesFromBase = snappedSlots * intervalMinutes;
     const startTotalMinutes = startHourBase * 60 + startMinutesFromBase;
 
+    let movedUpdatedEvent: CalendarEvent | null = null;
+    // Si tenemos horas explícitas, usamos un camino rápido sin recalcular
+    if (explicitStart && explicitEnd) {
+      setEvents(prev => {
+        const newWorker = WORKERS[newWorkerIndex];
+        return prev.map(ev => ev.id === eventId ? { ...ev, worker: newWorker?.name || ev.worker, startTime: explicitStart, endTime: explicitEnd } : ev);
+      });
+      setSelectedEvent(prev => (prev && prev.id === eventId) ? { ...prev, worker: WORKERS[newWorkerIndex]?.name || prev.worker, startTime: explicitStart, endTime: explicitEnd } : prev);
+      return;
+    }
+
     setEvents(prev => {
       const startHourBase = 9;
       const endHourLimit = 18;
       const timeToMin = (t: string) => { const [h,m]=t.split(':').map(Number); return h*60+m; };
       const minToTime = (mTotal: number) => { const h=Math.floor(mTotal/60); const m=mTotal%60; const pad=(n:number)=>n.toString().padStart(2,'0'); return `${pad(h)}:${pad(m)}`; };
       const newWorker = WORKERS[newWorkerIndex];
-      return prev.map(ev => {
+      const next = prev.map(ev => {
         if (ev.id !== eventId) return ev;
         // Duración previa o derivada de altura
         let durationMinutes: number;
@@ -241,36 +259,30 @@ export const useCalendarState = () => {
         if (desiredEnd > endHourLimit*60) desiredEnd = endHourLimit*60;
         // Ajustar duración si se recortó por límite
         durationMinutes = desiredEnd - desiredStart;
-
-        // Colisiones con eventos de mismo worker destino
+        // Ya no se ajusta por colisiones: se respeta la posición soltada
         const targetWorkerName = newWorker?.name || ev.worker;
-        const others = prev.filter(o => o.id !== ev.id && (o.worker === targetWorkerName))
-          .map(o => ({ start: timeToMin(o.startTime), end: timeToMin(o.endTime) }))
-          .sort((a,b)=>a.start-b.start);
-        const overlaps = (s:number,e:number,oS:number,oE:number)=> s < oE && e > oS;
-        let guard = 0;
-        while (guard < 100) {
-          guard++;
-            const conflict = others.find(o => overlaps(desiredStart, desiredEnd, o.start, o.end));
-            if (!conflict) break;
-            desiredStart = conflict.end; // empujar al final
-            // Snap a intervalo de 15
-            const mod = (desiredStart - startHourBase*60) % intervalMinutes;
-            if (mod !== 0) desiredStart += (intervalMinutes - mod);
-            desiredEnd = desiredStart + durationMinutes;
-            if (desiredEnd > endHourLimit*60) {
-              // No cabe; revertir a tiempos originales
-              return ev;
-            }
-        }
-        return {
+        // Snap final por consistencia (aunque ya viene snapeado)
+        const mod = (desiredStart - startHourBase*60) % intervalMinutes;
+        if (mod !== 0) desiredStart -= mod; // usar hacia abajo para evitar desplazamiento inesperado
+        desiredEnd = desiredStart + durationMinutes;
+        if (desiredEnd > endHourLimit*60) desiredEnd = endHourLimit*60;
+        // Si vienen horas explícitas (calculadas ya en el componente) las usamos en lugar del cálculo local
+        let finalStartTime = explicitStart || minToTime(desiredStart);
+        let finalEndTime = explicitEnd || minToTime(desiredEnd);
+        const updated = {
           ...ev,
           worker: targetWorkerName,
-          startTime: minToTime(desiredStart),
-          endTime: minToTime(desiredEnd)
+          startTime: finalStartTime,
+          endTime: finalEndTime
         };
+        movedUpdatedEvent = updated;
+        return updated;
       });
+      return next;
     });
+    if (movedUpdatedEvent) {
+      setSelectedEvent(prev => (prev && prev.id === eventId) ? { ...prev, worker: movedUpdatedEvent!.worker, startTime: movedUpdatedEvent!.startTime, endTime: movedUpdatedEvent!.endTime } : prev);
+    }
   };
 
   return {
