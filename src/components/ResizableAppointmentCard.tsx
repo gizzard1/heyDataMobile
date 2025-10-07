@@ -93,21 +93,41 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
   const movedDuringGestureRef = useRef(false);
   const longPressReadyRef = useRef(false);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const LONG_PRESS_MS = 380;
+  const LONG_PRESS_MS = 340;
 
   // Mantener handles visibles mientras esté activo el modo edición
   useEffect(() => {
     setShowHandles(editMode);
   }, [editMode]);
 
+  // Si el modo edición se desactiva externamente, asegurar limpiar estados de gestos
+  useEffect(() => {
+    if (!editMode) {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (dragging || resizingTop || resizingBottom) {
+        console.log(`🔚 Saliendo de modo edición externamente: liberando drag/resize para ${event.id}`);
+      }
+      if (dragging) setDragging(false);
+      if (resizingTop) setResizingTop(false);
+      if (resizingBottom) setResizingBottom(false);
+      setPreview(null);
+      // Notificar al padre que ya no estamos bloqueando scroll
+      onDragStateChange?.(false);
+      longPressReadyRef.current = false;
+    }
+  }, [editMode]);
+
   // Sincronizar modo edición con control externo
   useEffect(() => {
     const shouldBeInEditMode = activeEditingId === event.id;
-    if (editMode !== shouldBeInEditMode) {
-      console.log(`📝 Sincronizando editMode para ${event.id}: ${editMode} -> ${shouldBeInEditMode}`);
-      setEditMode(shouldBeInEditMode);
-    }
-  }, [activeEditingId, event.id, editMode]);
+    setEditMode(prev => {
+      if (prev !== shouldBeInEditMode) {
+        console.log(`� Cambiando editMode para ${event.id}: ${prev} -> ${shouldBeInEditMode}`);
+        return shouldBeInEditMode;
+      }
+      return prev;
+    });
+  }, [activeEditingId, event.id]);
 
   // Recalcula la cadena "HH:MM - HH:MM" para mostrar mientras se manipula la tarjeta
   const updatePreview = (startS: number, durS: number) => {
@@ -143,31 +163,43 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
       onStartShouldSetPanResponder: (evt) => {
         if (resizingTop || resizingBottom) return false;
         const yLoc = evt.nativeEvent.locationY;
-        const topZone = 56;
-        const bottomZone = 56;
+        const topZone = 28;
+        const bottomZone = 28;
         const cardH = currentDurationRef.current * slotHeight;
-        if (yLoc <= topZone || yLoc >= cardH - bottomZone) return false;
+        if (editMode) {
+          // En modo edición, prevenir arranque de drag en zonas de handles
+          if (yLoc <= topZone || yLoc >= cardH - bottomZone) {
+            console.log(`⛔ Tocaste zona reservada (edge) id=${event.id}, yLoc=${yLoc}, h=${cardH}`);
+            return false;
+          }
+          return true;
+        }
+        // Fuera de modo edición, permitir long-press desde cualquier parte de la tarjeta
         return true;
       },
       onMoveShouldSetPanResponder: (evt, g) => {
         if (resizingTop || resizingBottom) return false;
         const yLoc = evt.nativeEvent.locationY;
-        const topZone = 56;
-        const bottomZone = 56;
+        const topZone = 28; 
+        const bottomZone = 28;
         const cardH = currentDurationRef.current * slotHeight;
-        if (yLoc <= topZone || yLoc >= cardH - bottomZone) return false;
+        if (editMode) {
+          if (yLoc <= topZone || yLoc >= cardH - bottomZone) return false;
+        }
         return (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2);
       },
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponderCapture: () => false,
-      onPanResponderTerminationRequest: () => false,
-      onShouldBlockNativeResponder: () => true,
+      onPanResponderTerminationRequest: () => true,
+      onShouldBlockNativeResponder: () => false,
       onPanResponderGrant: () => {
+        console.log(`🎯 onPanResponderGrant - editMode: ${editMode}, activeEditingId: ${activeEditingId}`);
         movedDuringGestureRef.current = false;
         longPressReadyRef.current = false;
         holdTimerRef.current && clearTimeout(holdTimerRef.current);
         if (editMode) {
           // En modo edición no requerimos long-press de nuevo
+          console.log('✅ Ya en modo edición - permitiendo drag inmediato');
           longPressReadyRef.current = true;
           setDragging(true);
           onDragStateChange?.(true);
@@ -176,7 +208,9 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
           scrollAtDragStartRef.current = currentScrollY;
           updatePreview(currentStartSlotRef.current, currentDurationRef.current);
         } else {
+          console.log(`⏱️ Iniciando timer de long press (${LONG_PRESS_MS}ms)`);
           holdTimerRef.current = setTimeout(() => {
+            console.log('🔥 Long press completado - activando modo edición');
             longPressReadyRef.current = true;
             setEditMode(true); // activar modo edición persistente
             onRequestEditMode?.(event.id, true);
@@ -194,9 +228,12 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
         if (Math.abs(g.dx) > 1 || Math.abs(g.dy) > 1) movedDuringGestureRef.current = true;
         lastGestureDyRef.current = g.dy;
         if (!(longPressReadyRef.current || editMode)) {
-          if (Math.abs(g.dx) > 10 || Math.abs(g.dy) > 10) {
+          if (Math.abs(g.dx) > 14 || Math.abs(g.dy) > 14) {
             // Detectamos intención de scroll normal: cancelar long press y NO bloquear scroll
-            holdTimerRef.current && clearTimeout(holdTimerRef.current);
+            if (holdTimerRef.current) {
+              console.log(`🧯 Cancelando long-press por movimiento (dx=${g.dx.toFixed(1)}, dy=${g.dy.toFixed(1)}) id=${event.id}`);
+              clearTimeout(holdTimerRef.current);
+            }
           }
           return;
         }
@@ -550,6 +587,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
         },
         (dragging || resizingTop || resizingBottom) && styles.active
       ]}
+      pointerEvents="auto"
       {...moveResponder.panHandlers}
     >
       {/* Línea superior (resize start) - visible en modo edición */}

@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { CalendarViewProps } from '../types';
 import { TIME_SLOTS, COLUMN_CONFIG, AUTO_SCROLL_CONFIG } from '../utils/constants';
@@ -68,6 +68,9 @@ export const DayView: React.FC<CalendarViewProps & {
   const [currentScrollY, setCurrentScrollY] = useState(0);
   // Control del modo edición a nivel de vista día (solo una tarjeta a la vez)
   const [activeEditingId, setActiveEditingId] = useState<string | undefined>(undefined);
+  // Timestamp para evitar cerrar inmediatamente tras entrar a modo edición
+  const lastEditActivatedAtRef = useRef<number>(0);
+  
   // Guardar último offset vertical para auto-scroll controlado por la tarjeta
   const lastScrollYRef = useRef(0);
   // Acumulador/throttle para deltas de auto-scroll
@@ -257,6 +260,21 @@ export const DayView: React.FC<CalendarViewProps & {
           >
             <View 
               style={calendarStyles.calendarGrid}
+              onStartShouldSetResponder={() => {
+                if (!activeEditingId) return false;
+                const now = Date.now();
+                // Evitar que el mismo gesto inmediatamente después del long-press cierre el modo edición
+                if (now - lastEditActivatedAtRef.current < 250) {
+                  console.log('🛑 Grid tap ignorado por debounce post-activación');
+                  return false;
+                }
+                console.log('📍 Grid capturó toque - cerrando modo edición');
+                setActiveEditingId(undefined);
+                // Asegurar que no quede bloqueado el scroll por una tarjeta
+                setDraggingCard(false);
+                // No reclamar el responder para no bloquear scrolls ni otros toques
+                return false;
+              }}
             >
               {TIME_SLOTS.map((timeSlot, index) => (
                 <View key={timeSlot.time} style={[
@@ -275,26 +293,6 @@ export const DayView: React.FC<CalendarViewProps & {
               
               {/* Contenedor absoluto para las citas */}
               <View style={calendarStyles.eventsContainer} pointerEvents="box-none">
-                {/* Overlay: cierra modo edición - debe estar DENTRO del eventsContainer */}
-                {activeEditingId && (
-                  <TouchableOpacity
-                    activeOpacity={1}
-                    onPress={() => {
-                      console.log('🔴 Overlay tocado - cerrando modo edición');
-                      setActiveEditingId(undefined);
-                    }}
-                    style={{ 
-                      position: 'absolute', 
-                      top: 0, 
-                      left: 0, 
-                      right: 0, 
-                      bottom: 0,
-                      zIndex: 900,
-                      elevation: 900,
-                      backgroundColor: 'rgba(0,0,0,0.01)',
-                    }}
-                  />
-                )}
                 {visibleWorkers.map((worker, wIndex) => {
                   const workerEvents = dayEvents.filter(ev => ev.worker === worker.name);
                   return workerEvents.map(event => (
@@ -337,7 +335,13 @@ export const DayView: React.FC<CalendarViewProps & {
                       autoScrollSpeed={AUTO_SCROLL_CONFIG.SPEED}
                       activeEditingId={activeEditingId}
                       onRequestEditMode={(id, enable) => {
-                        setActiveEditingId(enable ? id : undefined);
+                        console.log(`🎨 onRequestEditMode llamado: id=${id}, enable=${enable}, activeEditingId actual=${activeEditingId}`);
+                        if (enable) {
+                          lastEditActivatedAtRef.current = Date.now();
+                          setActiveEditingId(id);
+                        } else {
+                          setActiveEditingId(undefined);
+                        }
                       }}
                     />
                   ));
