@@ -66,6 +66,8 @@ export const DayView: React.FC<CalendarViewProps & {
   const [autoScrollActiveBottom, setAutoScrollActiveBottom] = useState(false);
   const autoScrollFadeTimeout = useRef<NodeJS.Timeout | null>(null);
   const [currentScrollY, setCurrentScrollY] = useState(0);
+  // Control del modo edición a nivel de vista día (solo una tarjeta a la vez)
+  const [activeEditingId, setActiveEditingId] = useState<string | undefined>(undefined);
   // Guardar último offset vertical para auto-scroll controlado por la tarjeta
   const lastScrollYRef = useRef(0);
   // Acumulador/throttle para deltas de auto-scroll
@@ -273,6 +275,26 @@ export const DayView: React.FC<CalendarViewProps & {
               
               {/* Contenedor absoluto para las citas */}
               <View style={calendarStyles.eventsContainer} pointerEvents="box-none">
+                {/* Overlay: cierra modo edición - debe estar DENTRO del eventsContainer */}
+                {activeEditingId && (
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => {
+                      console.log('🔴 Overlay tocado - cerrando modo edición');
+                      setActiveEditingId(undefined);
+                    }}
+                    style={{ 
+                      position: 'absolute', 
+                      top: 0, 
+                      left: 0, 
+                      right: 0, 
+                      bottom: 0,
+                      zIndex: 900,
+                      elevation: 900,
+                      backgroundColor: 'rgba(0,0,0,0.01)',
+                    }}
+                  />
+                )}
                 {visibleWorkers.map((worker, wIndex) => {
                   const workerEvents = dayEvents.filter(ev => ev.worker === worker.name);
                   return workerEvents.map(event => (
@@ -313,6 +335,10 @@ export const DayView: React.FC<CalendarViewProps & {
                       }}
                       autoScrollEdgeThreshold={AUTO_SCROLL_CONFIG.EDGE_THRESHOLD}
                       autoScrollSpeed={AUTO_SCROLL_CONFIG.SPEED}
+                      activeEditingId={activeEditingId}
+                      onRequestEditMode={(id, enable) => {
+                        setActiveEditingId(enable ? id : undefined);
+                      }}
                     />
                   ));
                 })}

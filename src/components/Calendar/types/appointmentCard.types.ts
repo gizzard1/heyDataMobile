@@ -44,4 +44,8 @@ export interface ResizableCardProps {
   autoScrollEdgeThreshold?: number; // zona sensible en px
   autoScrollSpeed?: number; // px por frame de gesto
   currentScrollY?: number; // offset actual del scroll externo para permitir movimiento más libre
+  /** Control externo del modo edición: id de la tarjeta actualmente en edición */
+  activeEditingId?: string;
+  /** Solicitud para entrar o salir del modo edición desde la tarjeta */
+  onRequestEditMode?: (eventId: string, enable: boolean) => void;
 }

@@ -54,6 +54,8 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
   autoScrollEdgeThreshold = 60,
   autoScrollSpeed = 24,
   currentScrollY = 0,
+  activeEditingId,
+  onRequestEditMode,
 }) => {
   // ======================================================
   // Conversión tiempo ↔ slots (usa helpers reutilizables)
@@ -86,10 +88,26 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
   const [dragging, setDragging] = useState(false);
   const [resizingTop, setResizingTop] = useState(false);
   const [resizingBottom, setResizingBottom] = useState(false);
+  const [showHandles, setShowHandles] = useState(false); // visibilidad de handles
+  const [editMode, setEditMode] = useState(false); // modo edición persistente
   const movedDuringGestureRef = useRef(false);
   const longPressReadyRef = useRef(false);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const LONG_PRESS_MS = 380;
+
+  // Mantener handles visibles mientras esté activo el modo edición
+  useEffect(() => {
+    setShowHandles(editMode);
+  }, [editMode]);
+
+  // Sincronizar modo edición con control externo
+  useEffect(() => {
+    const shouldBeInEditMode = activeEditingId === event.id;
+    if (editMode !== shouldBeInEditMode) {
+      console.log(`📝 Sincronizando editMode para ${event.id}: ${editMode} -> ${shouldBeInEditMode}`);
+      setEditMode(shouldBeInEditMode);
+    }
+  }, [activeEditingId, event.id, editMode]);
 
   // Recalcula la cadena "HH:MM - HH:MM" para mostrar mientras se manipula la tarjeta
   const updatePreview = (startS: number, durS: number) => {
@@ -148,8 +166,20 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
         movedDuringGestureRef.current = false;
         longPressReadyRef.current = false;
         holdTimerRef.current && clearTimeout(holdTimerRef.current);
-        holdTimerRef.current = setTimeout(() => {
+        if (editMode) {
+          // En modo edición no requerimos long-press de nuevo
           longPressReadyRef.current = true;
+          setDragging(true);
+          onDragStateChange?.(true);
+          dragInitialXRef.current = (x as any)._value ?? workerIndex * columnWidth;
+          dragInitialYRef.current = (y as any)._value ?? startSlot * slotHeight;
+          scrollAtDragStartRef.current = currentScrollY;
+          updatePreview(currentStartSlotRef.current, currentDurationRef.current);
+        } else {
+          holdTimerRef.current = setTimeout(() => {
+            longPressReadyRef.current = true;
+            setEditMode(true); // activar modo edición persistente
+            onRequestEditMode?.(event.id, true);
             setDragging(true);
             // Bloquear scroll solo ahora que inicia drag real
             onDragStateChange?.(true);
@@ -157,12 +187,13 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
             dragInitialYRef.current = (y as any)._value ?? startSlot * slotHeight;
             scrollAtDragStartRef.current = currentScrollY;
             updatePreview(currentStartSlotRef.current, currentDurationRef.current);
-        }, LONG_PRESS_MS);
+          }, LONG_PRESS_MS);
+        }
       },
       onPanResponderMove: (_, g) => {
         if (Math.abs(g.dx) > 1 || Math.abs(g.dy) > 1) movedDuringGestureRef.current = true;
         lastGestureDyRef.current = g.dy;
-        if (!longPressReadyRef.current) {
+        if (!(longPressReadyRef.current || editMode)) {
           if (Math.abs(g.dx) > 10 || Math.abs(g.dy) > 10) {
             // Detectamos intención de scroll normal: cancelar long press y NO bloquear scroll
             holdTimerRef.current && clearTimeout(holdTimerRef.current);
@@ -250,6 +281,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
             currentWorkerRef.current = finalWorker;
             currentStartSlotRef.current = finalStart;
             setDragging(false);
+            // En modo edición mantenemos handles visibles
             setPreview(null);
             const st = slotsToTime(finalStart);
             const et = slotsToTime(finalStart + currentDurationRef.current);
@@ -259,9 +291,14 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
               const et = slotsToTime(finalStart + currentDurationRef.current);
               onMove(finalWorker, finalStart * slotHeight, currentDurationRef.current * slotHeight, st, et);
             } else {
-              onPress();
+              // No abrir detalles si estamos en modo edición o si fue por long-press
+              if (!editMode && !longPressReadyRef.current && !showHandles) {
+                onPress();
+              }
             }
             onDragStateChange?.(false);
+            // Reset de estado de long press para próximas interacciones
+            longPressReadyRef.current = false;
           });
         } else if (!continuousDrag && dragExecuted) {
           const dCols = Math.round(g.dx / columnWidth);
@@ -280,6 +317,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
             Animated.timing(y, { toValue: finalStart * slotHeight, duration: 110, useNativeDriver: false })
           ]).start(() => {
             setDragging(false);
+            // En modo edición mantenemos handles visibles
             setPreview(null);
             const st = slotsToTime(finalStart);
             const et = slotsToTime(finalStart + currentDurationRef.current);
@@ -289,25 +327,41 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
               const et = slotsToTime(finalStart + currentDurationRef.current);
               onMove(finalWorker, finalStart * slotHeight, currentDurationRef.current * slotHeight, st, et);
             } else {
-              onPress();
+              // No abrir detalles si estamos en modo edición o si fue por long-press
+              if (!editMode && !longPressReadyRef.current && !showHandles) {
+                onPress();
+              }
             }
             onDragStateChange?.(false);
+            // Reset de estado de long press para próximas interacciones
+            longPressReadyRef.current = false;
           });
         } else {
           // (debug logs removed)
           const moved = Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2 || movedDuringGestureRef.current;
           setDragging(false);
+          // En modo edición mantenemos handles visibles hasta que el usuario salga explícitamente
+          if (!editMode) setShowHandles(false);
           setPreview(null);
           if (!moved) {
-            onPress();
+            if (editMode) {
+              // Un tap sin movimiento dentro del modo edición sirve para salir del modo
+              setEditMode(false);
+              onRequestEditMode?.(event.id, false);
+            } else if (!longPressReadyRef.current && !showHandles) {
+              onPress();
+            }
           }
           onDragStateChange?.(false);
+          // Reset de estado de long press para próximas interacciones
+          longPressReadyRef.current = false;
         }
         // Asegurar liberar scroll si se había bloqueado temprano
       },
       onPanResponderTerminate: () => {
         holdTimerRef.current && clearTimeout(holdTimerRef.current);
         setDragging(false);
+        setShowHandles(false); // Ocultar handles
         setPreview(null);
         onDragStateChange?.(false);
       }
@@ -358,6 +412,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
       onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
         setResizingTop(true);
+        setShowHandles(true); // Mostrar handles al iniciar resize
         onDragStateChange?.(true);
         updatePreview(currentStartSlotRef.current, currentDurationRef.current);
         holdTimerRef.current && clearTimeout(holdTimerRef.current);
@@ -390,6 +445,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
           Animated.timing(hA, { toValue: newDur * slotHeight, duration: 90, useNativeDriver: false })
         ]).start(() => {
           setResizingTop(false);
+          if (!editMode) setShowHandles(false); // Ocultar handles al terminar si no está en modo edición
           const st = slotsToTime(newStart);
           const et = slotsToTime(newStart + newDur);
           onResize(st, et);
@@ -398,7 +454,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
           onDragStateChange?.(false);
         });
       },
-      onPanResponderTerminate: () => { setResizingTop(false); setPreview(null); onDragStateChange?.(false); }
+      onPanResponderTerminate: () => { setResizingTop(false); if (!editMode) setShowHandles(false); setPreview(null); onDragStateChange?.(false); }
     })
   ).current;
 
@@ -411,6 +467,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
       onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
         setResizingBottom(true);
+        setShowHandles(true); // Mostrar handles al iniciar resize
         onDragStateChange?.(true);
         updatePreview(currentStartSlotRef.current, currentDurationRef.current);
         holdTimerRef.current && clearTimeout(holdTimerRef.current);
@@ -434,6 +491,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
         currentDurationRef.current = newDur;
         Animated.timing(hA, { toValue: newDur * slotHeight, duration: 90, useNativeDriver: false }).start(() => {
           setResizingBottom(false);
+          if (!editMode) setShowHandles(false); // Ocultar handles al terminar si no está en modo edición
           const st = slotsToTime(currentStartSlotRef.current);
           const et = slotsToTime(currentStartSlotRef.current + newDur);
           onResize(st, et);
@@ -442,7 +500,7 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
           onDragStateChange?.(false);
         });
       },
-      onPanResponderTerminate: () => { setResizingBottom(false); setPreview(null); onDragStateChange?.(false); }
+      onPanResponderTerminate: () => { setResizingBottom(false); if (!editMode) setShowHandles(false); setPreview(null); onDragStateChange?.(false); }
     })
   ).current;
 
@@ -488,32 +546,47 @@ const ResizableAppointmentCard: React.FC<CardProps> = ({
           top: y,
           height: hA,
           width,
-          backgroundColor: event.color || '#1976D2',
-          borderLeftColor: event.color || '#1976D2'
+          borderLeftColor: event.color || '#007AFF'
         },
         (dragging || resizingTop || resizingBottom) && styles.active
       ]}
       {...moveResponder.panHandlers}
     >
-      {/* Línea superior (resize start) - zona verde ampliada */}
-      <View style={styles.internalHandleTop} {...topResponder.panHandlers}>
-        <View style={styles.internalLine} />
-      </View>
-      {/* Contenido */}
+      {/* Línea superior (resize start) - visible en modo edición */}
+      {(showHandles || editMode) && (
+        <View style={[styles.internalHandleTop, styles.handleVisible]} {...topResponder.panHandlers}>
+          <View style={styles.internalLine} />
+        </View>
+      )}
+      
+      {/* Contenido - Horario primero, luego cliente y servicios */}
       <View style={styles.content}>
-        <Text style={styles.time} numberOfLines={1} selectable={false}>{preview || displayedTime}</Text>
-        <Text style={styles.title} numberOfLines={1} selectable={false}>{event.cliente?.nombre}</Text>
+        <Text style={styles.time} numberOfLines={1} selectable={false}>
+          {preview || displayedTime}
+        </Text>
+        <Text style={styles.title} numberOfLines={1} selectable={false}>
+          {event.cliente?.nombre || 'Sin cliente'}
+        </Text>
         <View style={styles.services}>
           {event.detalles.slice(0,2).map((d,i)=> (
-            <Text key={i} style={styles.service} numberOfLines={1} selectable={false}>• {d.servicio.nombre}</Text>
+            <Text key={i} style={styles.service} numberOfLines={1} selectable={false}>
+              • {d.servicio.nombre}
+            </Text>
           ))}
-          {event.detalles.length > 2 && <Text style={styles.more} selectable={false}>+{event.detalles.length - 2} más</Text>}
+          {event.detalles.length > 2 && (
+            <Text style={styles.more} selectable={false}>
+              +{event.detalles.length - 2} más
+            </Text>
+          )}
         </View>
       </View>
-      {/* Línea inferior (resize end) - zona verde ampliada */}
-      <View style={styles.internalHandleBottom} {...bottomResponder.panHandlers}>
-        <View style={styles.internalLine} />
-      </View>
+      
+      {/* Línea inferior (resize end) - visible en modo edición */}
+      {(showHandles || editMode) && (
+        <View style={[styles.internalHandleBottom, styles.handleVisible]} {...bottomResponder.panHandlers}>
+          <View style={styles.internalLine} />
+        </View>
+      )}
     </Animated.View>
   );
 };

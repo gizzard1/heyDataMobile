@@ -211,7 +211,8 @@ export const calendarStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 50,
+    zIndex: 1000,
+    elevation: 1000,
   },
   autoScrollShadeTop: {
     position: 'absolute',
